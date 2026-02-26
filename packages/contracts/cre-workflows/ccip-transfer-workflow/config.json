@@ -1,0 +1,5 @@
+{
+  "chainSelectorName": "ethereum-testnet-sepolia",
+  "ccipConsumerAddress": "0x033804C03aA014aAb2Eb552BAAe9efeab2BeE5da",
+  "gasLimit": "1200000"
+}

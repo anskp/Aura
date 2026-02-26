@@ -1,0 +1,21 @@
+# Deployed Contract Addresses (Ethereum Sepolia)
+
+| Contract Name | Address |
+| --- | --- |
+| **Identity Registry** | `0xC9CcbF9d29eE599B6A1790112439387a235c0eAe` |
+| **Compliance Registry** | `0xa1549874980F2f563d304E995a0cD9C5A7291300` |
+| **Aura RWA Token** | `0xb99329522A44A489eaB1138ED4266F260c13f5D6` |
+| **NAV Oracle** | `0xaf9E56B5E72C0F159c853DbEdd02245B11133CBF` |
+| **Proof of Reserve** | `0xE5D2FaCF85E358A71FaA3d0F775c4CdEB1dccBfD` |
+| **Liquidity Pool** | `0xb88621d4011eE95f09410122EFC503aa161e3d77` |
+| **Mock Oracle Provider** | `0xed95c54CF17162Da68CF1e5003Ec404f963Ef647` |
+| **Oracle Update Coordinator** | `0x98714BFfbd70B2DB37214E104e8BD5EF86242080` |
+| **Automation Registry** | `0x6F2897e2Cc270d1C28c30C4509E6CE54A9fa2e7e` |
+| **Aura CCIP Sender** | `0x7DeD3e6C49D1bF91857594d00b546D96d3Ff1eBc` |
+| **Aura CCIP Receiver** | `0xEa90909566718972cB6A67f87C7723d64a91CACf` |
+| **Oracle Consumer** | `0x7f42b6D756bC075724A19e5F9691a3da5e54fa58` |
+| **CCIP Consumer** | `0x033804C03aA014aAb2Eb552BAAe9efeab2BeE5da` |
+
+### IDs
+- **Pool ID**: `0x415552415f504f4f4c0000000000000000000000000000000000000000000000`
+- **Asset ID**: `0x415552415f415353455400000000000000000000000000000000000000000000`

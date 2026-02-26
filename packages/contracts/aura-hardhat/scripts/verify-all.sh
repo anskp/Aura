@@ -1,0 +1,36 @@
+#!/bin/bash
+# Verify all deployed contracts on Sepolia
+# Admin address used as constructor arg
+ADMIN="0x5537dbc19eeE936A615B151c8C5983FBF735C583"
+
+IDENTITY="0xC9CcbF9d29eE599B6A1790112439387a235c0eAe"
+COMPLIANCE="0xa1549874980F2f563d304E995a0cD9C5A7291300"
+TOKEN="0xf0D268f9df2b34E0EFdCA4E18eAB98Bf28940C5a"
+NAV="0xaf9E56B5E72C0F159c853DbEdd02245B11133CBF"
+POR="0xE5D2FaCF85E358A71FaA3d0F775c4CdEB1dccBfD"
+POOL="0xb88621d4011eE95f09410122EFC503aa161e3d77"
+MOCK="0xed95c54CF17162Da68CF1e5003Ec404f963Ef647"
+COORD="0x98714BFfbd70B2DB37214E104e8BD5EF86242080"
+CCIP_SENDER="0x7DeD3e6C49D1bF91857594d00b546D96d3Ff1eBc"
+ORACLE_CONSUMER="0x7f42b6D756bC075724A19e5F9691a3da5e54fa58"
+CCIP_CONSUMER="0x033804C03aA014aAb2Eb552BAAe9efeab2BeE5da"
+
+SEPOLIA_ROUTER="0x0bF39CCC6752077e687f0D00e00780496E733A59"
+SEPOLIA_LINK="0x779877A7B0D9E8603169DdbD7836e478b4624789"
+
+echo "Verifying IdentityRegistry..."
+npx hardhat verify --network sepolia $IDENTITY "$ADMIN"
+
+echo "Verifying ERC3643ComplianceRegistry..."
+npx hardhat verify --network sepolia $COMPLIANCE "$ADMIN"
+
+echo "Verifying NavOracle (already done)..."
+# npx hardhat verify --network sepolia $NAV "$ADMIN"
+
+echo "Verifying ProofOfReserve..."
+npx hardhat verify --network sepolia $POR "$ADMIN"
+
+echo "Verifying OracleConsumer..."
+npx hardhat verify --network sepolia $ORACLE_CONSUMER "$ORACLE_CONSUMER" "$SEPOLIA_ROUTER"
+
+echo "Done!"

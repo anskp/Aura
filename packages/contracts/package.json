@@ -1,0 +1,44 @@
+{
+  "name": "aura-hardhat",
+  "version": "1.0.0",
+  "private": true,
+  "engines": {
+    "node": "20.x"
+  },
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "test:unit": "hardhat test test/unit/**/*.spec.ts",
+    "test:integration": "hardhat test test/integration/**/*.spec.ts",
+    "test:ccip": "hardhat test test/ccip/**/*.spec.ts",
+    "deploy:local": "hardhat deploy-core --network hardhat",
+    "smoke:ccip": "hardhat ccip-smoke --network ethereumSepolia"
+  },
+  "devDependencies": {
+    "@chainlink/contracts": "1.5.0",
+    "@chainlink/contracts-ccip": "1.6.2",
+    "@chainlink/env-enc": "1.0.5",
+    "@chainlink/local": "0.2.7-beta.0",
+    "@nomicfoundation/hardhat-chai-matchers": "2.0.8",
+    "@nomicfoundation/hardhat-ethers": "3.0.8",
+    "@nomicfoundation/hardhat-network-helpers": "1.0.12",
+    "@nomicfoundation/hardhat-verify": "2.0.12",
+    "@openzeppelin/contracts": "5.4.0",
+    "@types/mocha": "10.0.10",
+    "chai": "4.5.0",
+    "ethers": "6.13.2",
+    "hardhat": "2.22.17",
+    "hardhat-preprocessor": "0.1.5",
+    "ts-node": "10.9.2",
+    "typescript": "5.8.2"
+  },
+  "overrides": {
+    "@nomicfoundation/hardhat-ethers": "3.0.8",
+    "@nomicfoundation/hardhat-chai-matchers": "2.0.8",
+    "@nomicfoundation/hardhat-network-helpers": "1.0.12",
+    "@nomicfoundation/hardhat-verify": "2.0.12"
+  },
+  "dependencies": {
+    "dotenv": "^17.3.1"
+  }
+}
