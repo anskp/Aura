@@ -12,6 +12,7 @@ const addWallet = async (req, res) => {
         const wallet = await walletService.addWallet(userId, address, chain);
         res.status(201).json(wallet);
     } catch (error) {
+        console.error('Error in addWallet:', error);
         res.status(400).json({ error: error.message });
     }
 };
@@ -19,9 +20,11 @@ const addWallet = async (req, res) => {
 const getWallets = async (req, res) => {
     try {
         const userId = req.user.id;
+        console.log(`Fetching wallets for user ${userId}`);
         const wallets = await walletService.getWallets(userId);
         res.status(200).json(wallets);
     } catch (error) {
+        console.error('Error in getWallets:', error);
         res.status(400).json({ error: error.message });
     }
 };

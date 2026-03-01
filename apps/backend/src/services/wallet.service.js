@@ -4,8 +4,7 @@ const addWallet = async (userId, address, chain) => {
     // Check if wallet already exists for this user and chain
     const existingWallet = await prisma.wallet.findFirst({
         where: {
-            userId,
-            address,
+            address: address.toLowerCase(),
             chain
         }
     });
@@ -17,7 +16,7 @@ const addWallet = async (userId, address, chain) => {
     return await prisma.wallet.create({
         data: {
             userId,
-            address,
+            address: address.toLowerCase(),
             chain
         }
     });

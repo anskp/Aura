@@ -11,6 +11,19 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Request logging middleware
+app.use((req, res, next) => {
+    console.log(`${req.method} ${req.url}`);
+    const oldJson = res.json;
+    res.json = function (data) {
+        if (res.statusCode >= 400) {
+            console.error(`Response ${res.statusCode}:`, data);
+        }
+        return oldJson.call(this, data);
+    };
+    next();
+});
+
 app.use('/health', healthRoutes);
 app.use('/auth', authRoutes);
 app.use('/wallets', walletRoutes);
