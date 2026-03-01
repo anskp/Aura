@@ -62,23 +62,27 @@ const Navbar = () => {
                     </Link>
                 )}
 
-                <Link to="/dashboard" className="flex items-center gap-4" style={{ color: 'var(--text-muted)', position: 'relative', display: 'flex', alignItems: 'center' }}>
-                    <ShieldCheck size={20} />
-                    <span>KYC</span>
-                    <div style={{
-                        width: '8px',
-                        height: '8px',
-                        borderRadius: '50%',
-                        background: getStatusColor(),
-                        marginLeft: '6px',
-                        boxShadow: `0 0 8px ${getStatusColor()}80`
-                    }}></div>
-                </Link>
+                {user.role === 'USER' && (
+                    <>
+                        <Link to="/dashboard" className="flex items-center gap-4" style={{ color: 'var(--text-muted)', position: 'relative', display: 'flex', alignItems: 'center' }}>
+                            <ShieldCheck size={20} />
+                            <span>KYC</span>
+                            <div style={{
+                                width: '8px',
+                                height: '8px',
+                                borderRadius: '50%',
+                                background: getStatusColor(),
+                                marginLeft: '6px',
+                                boxShadow: `0 0 8px ${getStatusColor()}80`
+                            }}></div>
+                        </Link>
 
-                <Link to="/assets" className="flex items-center gap-4" style={{ color: 'var(--text-muted)' }}>
-                    <Box size={20} />
-                    <span>Assets</span>
-                </Link>
+                        <Link to="/assets" className="flex items-center gap-4" style={{ color: 'var(--text-muted)' }}>
+                            <Box size={20} />
+                            <span>Assets</span>
+                        </Link>
+                    </>
+                )}
 
                 <div style={{ height: '24px', width: '1px', background: 'var(--card-border)', margin: '0 1rem' }}></div>
 

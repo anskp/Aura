@@ -36,8 +36,23 @@ const getAllAssets = async (req, res) => {
     }
 };
 
+const approveAsset = async (req, res) => {
+    try {
+        if (req.user.role !== 'ADMIN') {
+            return res.status(403).json({ error: 'Forbidden' });
+        }
+        const { id } = req.params;
+        const asset = await assetService.updateAssetStatus(parseInt(id), 'ONBOARDED');
+        res.status(200).json(asset);
+    } catch (error) {
+        console.error('Error in approveAsset:', error);
+        res.status(400).json({ error: error.message });
+    }
+};
+
 module.exports = {
     onboardAsset,
     getUserAssets,
-    getAllAssets
+    getAllAssets,
+    approveAsset
 };
