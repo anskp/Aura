@@ -7,6 +7,23 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Asset {
+  id               Int          @id @default(autoincrement())
+  name             String
+  symbol           String
+  description      String?      @db.Text
+  type             AssetType
+  valuation        Decimal
+  location         String?
+  status           AssetStatus  @default(PENDING)
+  companyName      String?
+  companyRegNumber String?
+  owner            User         @relation(fields: [ownerId], references: [id])
+  ownerId          Int
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+}
+
 model User {
   id        Int      @id @default(autoincrement())
   email     String   @unique
@@ -14,6 +31,7 @@ model User {
   role      Role     @default(USER)
   kycStatus KYCStatus @default(PENDING)
   wallets   Wallet[]
+  assets    Asset[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -39,4 +57,17 @@ enum KYCStatus {
   SUBMITTED
   APPROVED
   REJECTED
+}
+
+enum AssetType {
+  ART
+  METAL
+  REAL_ESTATE
+  CARBON
+  OTHER
+}
+
+enum AssetStatus {
+  PENDING
+  ONBOARDED
 }

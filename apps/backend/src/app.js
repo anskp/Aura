@@ -4,6 +4,7 @@ const healthRoutes = require('./routes/health.routes');
 const authRoutes = require('./routes/auth.routes');
 const walletRoutes = require('./routes/wallet.routes');
 const userRoutes = require('./routes/user.routes');
+const assetRoutes = require('./routes/asset.routes');
 
 const app = express();
 
@@ -14,5 +15,6 @@ app.use('/health', healthRoutes);
 app.use('/auth', authRoutes);
 app.use('/wallets', walletRoutes);
 app.use('/users', userRoutes);
+app.use('/assets', assetRoutes);
 
 module.exports = app;

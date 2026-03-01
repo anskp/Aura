@@ -7,6 +7,8 @@ import AdminLoginPage from './pages/admin/AdminLoginPage';
 import UserDashboard from './pages/user/UserDashboard';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import KYCScreen from './pages/user/KYCScreen';
+import AssetDashboard from './pages/user/AssetDashboard';
+import AssetOnboardingPage from './pages/user/AssetOnboardingPage';
 import Navbar from './components/Navbar';
 import './index.css';
 
@@ -47,6 +49,22 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute>
             <KYCScreen />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/assets"
+        element={
+          <ProtectedRoute>
+            <AssetDashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/assets/onboard"
+        element={
+          <ProtectedRoute>
+            <AssetOnboardingPage />
           </ProtectedRoute>
         }
       />

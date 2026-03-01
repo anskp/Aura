@@ -1,23 +1,31 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
-import { Wallet, Plus, Globe, ExternalLink, Activity } from 'lucide-react';
+import { Wallet, Plus, Globe, ExternalLink, Activity, Box } from 'lucide-react';
 import { ethers } from 'ethers';
+import { useNavigate } from 'react-router-dom';
 
 const UserDashboard = () => {
     const { user } = useAuth();
+    const navigate = useNavigate();
     const [wallets, setWallets] = useState([]);
+    const [assets, setAssets] = useState([]);
     const [loading, setLoading] = useState(true);
     const [connecting, setConnecting] = useState(false);
 
     useEffect(() => {
-        fetchWallets();
+        fetchData();
     }, []);
 
-    const fetchWallets = async () => {
+    const fetchData = async () => {
+        setLoading(true);
         try {
-            const res = await api.get('/wallets');
-            setWallets(res.data);
+            const [walletRes, assetRes] = await Promise.all([
+                api.get('/wallets'),
+                api.get('/assets/my-assets')
+            ]);
+            setWallets(walletRes.data);
+            setAssets(assetRes.data);
         } catch (err) {
             console.error(err);
         } finally {
@@ -45,7 +53,7 @@ const UserDashboard = () => {
             if (chainId === 43113) chain = 'FUJI';
 
             await api.post('/wallets', { address: accounts[0], chain });
-            fetchWallets();
+            fetchData();
         } catch (err) {
             alert(err.response?.data?.error || 'Wallet connection failed');
         } finally {
@@ -75,10 +83,10 @@ const UserDashboard = () => {
                         {user?.kycStatus || 'PENDING'}
                     </h2>
                 </div>
-                <div className="glass-card" style={{ padding: '1.5rem' }}>
+                <div className="glass-card" style={{ padding: '1.5rem', cursor: 'pointer' }} onClick={() => navigate('/assets')}>
                     <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>Total Assets</p>
-                    <h2 style={{ margin: '0.5rem 0', fontSize: '2rem' }}>3</h2>
-                    <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>Yield generating</p>
+                    <h2 style={{ margin: '0.5rem 0', fontSize: '2rem' }}>{assets.length}</h2>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>View on-boarded assets</p>
                 </div>
             </div>
 
