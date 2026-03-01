@@ -10,12 +10,18 @@ import KYCScreen from './pages/user/KYCScreen';
 import Navbar from './components/Navbar';
 import './index.css';
 
-const ProtectedRoute = ({ children, adminOnly = false }) => {
+const ProtectedRoute = ({ children, adminOnly = false, kycRequired = false }) => {
   const { user, loading } = useAuth();
 
   if (loading) return <div>Loading...</div>;
   if (!user) return <Navigate to="/login" />;
   if (adminOnly && user.role !== 'ADMIN') return <Navigate to="/dashboard" />;
+
+  if (kycRequired && user.kycStatus !== 'APPROVED') {
+    // We can't easily show an alert here during render, so we'll just redirect
+    // In a real app, we might use a toast or a query param
+    return <Navigate to="/kyc" state={{ message: 'KYC required to access marketplace' }} />;
+  }
 
   return children;
 };
@@ -29,7 +35,7 @@ const AppRoutes = () => {
       <Route
         path="/dashboard"
         element={
-          <ProtectedRoute>
+          <ProtectedRoute kycRequired={true}>
             <UserDashboard />
           </ProtectedRoute>
         }

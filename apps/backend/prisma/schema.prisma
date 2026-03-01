@@ -7,36 +7,46 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id        Int      @id @default(autoincrement())
-  email     String   @unique
+model user {
+  id        Int       @id @default(autoincrement())
+  email     String    @unique(map: "User_email_key")
   password  String
-  role      Role     @default(USER)
-  kycStatus KYCStatus @default(PENDING)
-  wallets   Wallet[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  role      user_role @default(USER)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  // KYC Fields
+  kycStatus          KycStatus @default(NOT_STARTED)
+  sumsubApplicantId  String?   @unique
+  kycReviewedAt      DateTime?
+  kycRejectionReason String?
+  kycLevel            String?
+  kycSnapshot         Json?
+  // Relations
+  wallets wallet[]
 }
 
-model Wallet {
+model wallet {
   id        Int      @id @default(autoincrement())
   address   String
-  chain     String   // e.g., 'ETH_SEP', 'AMOY', 'FUJI'
-  user      User     @relation(fields: [userId], references: [id])
+  chain     String
   userId    Int
   createdAt DateTime @default(now())
+
+  user user @relation(fields: [userId], references: [id])
 
   @@unique([address, chain])
 }
 
-enum Role {
+enum user_role {
   USER
   ADMIN
 }
 
-enum KYCStatus {
+enum KycStatus {
+  NOT_STARTED
   PENDING
-  SUBMITTED
+  IN_REVIEW
   APPROVED
   REJECTED
 }
