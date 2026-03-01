@@ -21,22 +21,11 @@ const AdminDashboard = () => {
         }
     };
 
-    const handleKYC = async (userId, status) => {
-        try {
-            await api.post('/users/admin/kyc/approve', { userId, status });
-            fetchUsers();
-        } catch (err) {
-            alert('Action failed');
-        }
-    };
 
     return (
         <div className="container">
             <div className="flex justify-between items-center mb-4">
                 <h2>Admin Governance</h2>
-                <div style={{ padding: '0.5rem 1rem', background: 'var(--danger)', borderRadius: '8px', fontSize: '0.75rem', color: 'white', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <AlertCircle size={14} /> 2 Pending Approvals
-                </div>
             </div>
 
             <div className="glass-card" style={{ padding: '0', overflow: 'hidden' }}>
@@ -68,23 +57,7 @@ const AdminDashboard = () => {
                                     {user.wallets?.length || 0} Connected
                                 </td>
                                 <td style={{ padding: '1rem' }}>
-                                    {user.kycStatus === 'SUBMITTED' && (
-                                        <div className="flex gap-4">
-                                            <button
-                                                onClick={() => handleKYC(user.id, 'APPROVED')}
-                                                style={{ width: 'auto', background: 'var(--accent)', padding: '0.4rem' }}
-                                            >
-                                                <UserCheck size={18} />
-                                            </button>
-                                            <button
-                                                onClick={() => handleKYC(user.id, 'REJECTED')}
-                                                style={{ width: 'auto', background: 'var(--danger)', padding: '0.4rem' }}
-                                            >
-                                                <UserX size={18} />
-                                            </button>
-                                        </div>
-                                    )}
-                                    {user.kycStatus !== 'SUBMITTED' && <span style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>No action required</span>}
+                                    <span style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>Automated via Sumsub</span>
                                 </td>
                             </tr>
                         ))}

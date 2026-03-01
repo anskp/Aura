@@ -6,7 +6,6 @@ import RegisterPage from './pages/user/RegisterPage';
 import AdminLoginPage from './pages/admin/AdminLoginPage';
 import UserDashboard from './pages/user/UserDashboard';
 import AdminDashboard from './pages/admin/AdminDashboard';
-import KYCScreen from './pages/user/KYCScreen';
 import AssetDashboard from './pages/user/AssetDashboard';
 import AssetOnboardingPage from './pages/user/AssetOnboardingPage';
 import Navbar from './components/Navbar';
@@ -37,7 +36,7 @@ const AppRoutes = () => {
       <Route
         path="/dashboard"
         element={
-          <ProtectedRoute kycRequired={true}>
+          <ProtectedRoute>
             <UserDashboard />
           </ProtectedRoute>
         }
@@ -52,11 +51,7 @@ const AppRoutes = () => {
       />
       <Route
         path="/kyc"
-        element={
-          <ProtectedRoute>
-            <KYCScreen />
-          </ProtectedRoute>
-        }
+        element={<Navigate to="/dashboard" />}
       />
       <Route
         path="/assets"

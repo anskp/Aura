@@ -7,15 +7,15 @@ import "@nomicfoundation/hardhat-chai-matchers";
 import "@nomicfoundation/hardhat-network-helpers";
 import "@nomicfoundation/hardhat-verify";
 import "hardhat-preprocessor";
-import { remapImportPaths } from "./helpers/remappings/remappings-helper";
-import "./tasks";
+import { remapImportPaths } from "./aura-hardhat/helpers/remappings/remappings-helper";
+import "./aura-hardhat/tasks";
 
 const PRIVATE_KEY = process.env.PRIVATE_KEY;
 const ETHEREUM_SEPOLIA_RPC_URL = process.env.ETHEREUM_SEPOLIA_RPC_URL;
 const AVALANCHE_FUJI_RPC_URL = process.env.AVALANCHE_FUJI_RPC_URL;
 
 const config: HardhatUserConfig = {
-  preprocess: remapImportPaths(),
+  // preprocess: remapImportPaths(),
   solidity: {
     version: "0.8.24",
     settings: {

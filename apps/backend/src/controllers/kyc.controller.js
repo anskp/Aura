@@ -1,4 +1,5 @@
 const sumsubService = require('../services/sumsub.service');
+const userService = require('../services/user.service');
 const prisma = require('../config/prisma');
 
 const getSDKToken = async (req, res) => {
@@ -87,6 +88,10 @@ const handleWebhook = async (req, res) => {
                     kycReviewedAt
                 }
             });
+
+            if (newStatus === 'APPROVED') {
+                await userService.syncUserOnChain(user.id);
+            }
         }
 
         res.status(200).send('OK');
@@ -141,6 +146,10 @@ const verifyCompletion = async (req, res) => {
                 sumsubApplicantId: applicant.id
             }
         });
+
+        if (newStatus === 'APPROVED') {
+            await userService.syncUserOnChain(userId);
+        }
 
         res.status(200).json({
             status: updatedUser.kycStatus,

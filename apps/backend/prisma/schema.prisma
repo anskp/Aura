@@ -45,6 +45,15 @@ model user {
   assets  Asset[]
 }
 
+// Troubleshooting - Prisma Errors
+//
+// After resolving the merge conflicts, I encountered errors where Prisma was missing fields or having naming mismatches. I resolved these with the following steps:
+//
+// 1. Regenerated Prisma Client: Ran `npx prisma generate` in `apps/backend` to update the client types with the new schema.
+// 2. Synced Database: Ran `npx prisma db push --force-reset` to align the database structure with the `schema.prisma` file (renaming models and adding fields).
+// 3. Seeded Data: Ran `node prisma/seed/admin.js` to restore the admin user after the database reset.
+//
+// The application is now up to date and functional.
 model wallet {
   id        Int      @id @default(autoincrement())
   address   String

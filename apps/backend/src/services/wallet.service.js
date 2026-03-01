@@ -1,4 +1,5 @@
 const prisma = require('../config/prisma');
+const userService = require('./user.service');
 
 const addWallet = async (userId, address, chain) => {
     // Check if wallet already exists for this user and chain
@@ -10,16 +11,26 @@ const addWallet = async (userId, address, chain) => {
     });
 
     if (existingWallet) {
-        throw new Error('Wallet already connected for this chain');
+        if (existingWallet.userId === userId) {
+            // Idempotent: User already has this wallet, just sync and return
+            await userService.syncUserOnChain(userId);
+            return existingWallet;
+        }
+        throw new Error('Wallet already connected to another account');
     }
 
-    return await prisma.wallet.create({
+    const wallet = await prisma.wallet.create({
         data: {
             userId,
             address: address.toLowerCase(),
             chain
         }
     });
+
+    // Trigger on-chain sync in case the user is already KYC approved
+    await userService.syncUserOnChain(userId);
+
+    return wallet;
 };
 
 const getWallets = async (userId) => {

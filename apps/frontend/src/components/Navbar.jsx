@@ -44,7 +44,7 @@ const Navbar = () => {
     return (
         <nav className="glass-card" style={{ margin: '1rem', padding: '1rem 2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderRadius: '12px' }}>
             <div className="flex items-center gap-4">
-                <Link to="/dashboard" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 800, fontSize: '1.5rem', background: 'linear-gradient(to right, #6366f1, #10b981)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', textDecoration: 'none' }}>
+                <Link to="/dashboard" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 800, fontSize: '1.5rem', background: 'linear-gradient(to right, #6366f1, #10b981)', WebkitBackgroundClip: 'text', backgroundClip: 'text', WebkitTextFillColor: 'transparent', textDecoration: 'none' }}>
                     AURA
                 </Link>
             </div>
@@ -62,8 +62,8 @@ const Navbar = () => {
                     </Link>
                 )}
 
-                <Link to="/kyc" className="flex items-center gap-4" style={{ color: 'var(--text-muted)', position: 'relative', display: 'flex', alignItems: 'center' }}>
-                    <Wallet size={20} />
+                <Link to="/dashboard" className="flex items-center gap-4" style={{ color: 'var(--text-muted)', position: 'relative', display: 'flex', alignItems: 'center' }}>
+                    <ShieldCheck size={20} />
                     <span>KYC</span>
                     <div style={{
                         width: '8px',

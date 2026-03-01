@@ -1,17 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
-import { Wallet, Plus, Globe, ExternalLink, Activity, Box } from 'lucide-react';
+import { Wallet, Plus, Globe, ExternalLink, Activity, Box, Shield, CheckCircle } from 'lucide-react';
 import { ethers } from 'ethers';
 import { useNavigate } from 'react-router-dom';
+import KYCModal from '../../components/KYCModal';
 
 const UserDashboard = () => {
-    const { user } = useAuth();
+    const { user, refreshUser } = useAuth();
     const navigate = useNavigate();
     const [wallets, setWallets] = useState([]);
     const [assets, setAssets] = useState([]);
     const [loading, setLoading] = useState(true);
     const [connecting, setConnecting] = useState(false);
+    const [isKYCModalOpen, setIsKYCModalOpen] = useState(false);
 
     useEffect(() => {
         fetchData();
@@ -53,6 +55,7 @@ const UserDashboard = () => {
             if (chainId === 43113) chain = 'FUJI';
 
             await api.post('/wallets', { address: accounts[0], chain });
+            await refreshUser();
             fetchData();
         } catch (err) {
             alert(err.response?.data?.error || 'Wallet connection failed');
@@ -67,8 +70,105 @@ const UserDashboard = () => {
         { id: 3, name: 'US Treasury Bills', asset: 'Yield-X', yield: '5.1%', nav: '$10,000,000.00', status: 'Paused' },
     ];
 
+    const isKYCComplete = user?.kycStatus === 'APPROVED';
+    const isWalletConnected = wallets.length > 0;
+    const isFullyOnboarded = isKYCComplete && isWalletConnected;
+
+    if (loading) return (
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '60vh' }}>
+            <div className="spinner"></div>
+            <p style={{ marginLeft: '1rem' }}>Loading dashboard...</p>
+        </div>
+    );
+
     return (
         <div className="container">
+            {!isFullyOnboarded && (
+                <section className="mb-4" style={{ marginBottom: '2rem' }}>
+                    <div className="glass-card" style={{ padding: '2rem', border: '1px solid var(--accent)', background: 'rgba(16, 185, 129, 0.05)' }}>
+                        <h2 style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
+                            <Activity className="text-accent" /> Complete Your Onboarding
+                        </h2>
+                        <p style={{ color: 'var(--text-muted)', marginBottom: '1.5rem' }}>
+                            To start trading Real-World Assets, you need to complete two simple steps:
+                        </p>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div style={{
+                                padding: '1.5rem',
+                                background: isWalletConnected ? 'rgba(16, 185, 129, 0.1)' : 'var(--glass)',
+                                borderRadius: '12px',
+                                border: isWalletConnected ? '1px solid var(--accent)' : '1px solid var(--card-border)',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '1rem'
+                            }}>
+                                <div className="flex justify-between items-center">
+                                    <h4 style={{ margin: 0 }}>Step 1: Connect Wallet</h4>
+                                    {isWalletConnected ? <CheckCircle style={{ color: 'var(--accent)' }} /> : <Wallet style={{ color: 'var(--text-muted)' }} />}
+                                </div>
+                                <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>
+                                    Connect your Web3 wallet (MetaMask) to manage your RWA tokens.
+                                </p>
+                                {!isWalletConnected && (
+                                    <button onClick={connectWallet} disabled={connecting} style={{ marginTop: 'auto' }}>
+                                        {connecting ? 'Connecting...' : 'Connect Wallet'}
+                                    </button>
+                                )}
+                            </div>
+
+                            <div style={{
+                                padding: '1.5rem',
+                                background: isKYCComplete ? 'rgba(16, 185, 129, 0.1)' : 'var(--glass)',
+                                borderRadius: '12px',
+                                border: isKYCComplete ? '1px solid var(--accent)' : '1px solid var(--card-border)',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '1rem'
+                            }}>
+                                <div className="flex justify-between items-center">
+                                    <h4 style={{ margin: 0 }}>Step 2: Complete KYC</h4>
+                                    {isKYCComplete ? <CheckCircle style={{ color: 'var(--accent)' }} /> : <Shield style={{ color: 'var(--text-muted)' }} />}
+                                </div>
+                                <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>
+                                    Verify your identity via Sumsub to enable on-chain trading.
+                                </p>
+                                {!isKYCComplete && (
+                                    <div className="flex flex-col gap-2">
+                                        <button
+                                            onClick={() => setIsKYCModalOpen(true)}
+                                            style={{ marginTop: 'auto', background: 'var(--accent)', color: 'var(--bg)' }}
+                                        >
+                                            {user?.kycStatus === 'PENDING' ? 'Resume KYC' : 'Verify Identity'}
+                                        </button>
+                                        {user?.kycStatus === 'PENDING' && (
+                                            <button
+                                                onClick={async () => {
+                                                    setLoading(true);
+                                                    try {
+                                                        await api.post('/kyc/verify-completion');
+                                                        await refreshUser();
+                                                        fetchData();
+                                                    } catch (err) {
+                                                        console.error('Manual sync failed', err);
+                                                    } finally {
+                                                        setLoading(false);
+                                                    }
+                                                }}
+                                                className="secondary"
+                                                style={{ fontSize: '0.75rem', padding: '0.5rem' }}
+                                            >
+                                                Already finished? Check Status
+                                            </button>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            )}
+
             <div className="grid grid-cols-3 gap-4 mb-4" style={{ marginBottom: '2rem' }}>
                 <div className="glass-card" style={{ padding: '1.5rem' }}>
                     <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>Connected Wallets</p>
@@ -153,6 +253,16 @@ const UserDashboard = () => {
                     ))}
                 </div>
             </section>
+
+            <KYCModal
+                isOpen={isKYCModalOpen}
+                onClose={() => setIsKYCModalOpen(false)}
+                onComplete={async () => {
+                    await refreshUser();
+                    fetchData();
+                    setIsKYCModalOpen(false);
+                }}
+            />
         </div>
     );
 };
