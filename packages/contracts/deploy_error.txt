@@ -1,0 +1,12 @@
+[dotenv@17.3.1] injecting env (26) from .env -- tip: ΓÜÖ∩╕Å  specify custom .env file path with { path: '/custom/path/.env' }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ΓÜí∩╕Å secrets for agents: https://dotenvx.com/as2
+An unexpected error occurred:
+
+Error: incorrect number of arguments to constructor
+    at ContractFactory.getDeployTransaction (C:\Users\anask\Desktop\convergence\Aura\packages\contracts\node_modules\ethers\src.ts\contract\factory.ts:87:19)
+    at ContractFactory.deploy (C:\Users\anask\Desktop\convergence\Aura\packages\contracts\node_modules\ethers\src.ts\contract\factory.ts:105:31)
+    at SimpleTaskDefinition.action (C:\Users\anask\Desktop\convergence\Aura\packages\contracts\aura-hardhat\tasks\deploy-core.ts:59:7)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async Environment._runTaskDefinition (C:\Users\anask\Desktop\convergence\Aura\packages\contracts\node_modules\hardhat\src\internal\core\runtime-environment.ts:351:14)
+    at async Environment.run (C:\Users\anask\Desktop\convergence\Aura\packages\contracts\node_modules\hardhat\src\internal\core\runtime-environment.ts:184:14)
+    at async main (C:\Users\anask\Desktop\convergence\Aura\packages\contracts\node_modules\hardhat\src\internal\cli\cli.ts:324:7)

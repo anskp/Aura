@@ -20,6 +20,7 @@ const register = async (email, password) => {
             email,
             password: hashedPassword,
         },
+        include: { wallets: true }
     });
 
     const { password: _, ...userWithoutPassword } = user;
@@ -29,7 +30,10 @@ const register = async (email, password) => {
 };
 
 const login = async (email, password) => {
-    const user = await prisma.user.findUnique({ where: { email } });
+    const user = await prisma.user.findUnique({
+        where: { email },
+        include: { wallets: true }
+    });
     if (!user) {
         throw new Error('Invalid credentials');
     }

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
-import { LayoutDashboard, ShieldCheck, LogOut, Wallet, Box } from 'lucide-react';
+import { LayoutDashboard, ShieldCheck, LogOut, Wallet, Box, ShoppingBag } from 'lucide-react';
 
 const Navbar = () => {
     const { user, logout } = useAuth();
@@ -80,6 +80,11 @@ const Navbar = () => {
                         <Link to="/assets" className="flex items-center gap-4" style={{ color: 'var(--text-muted)' }}>
                             <Box size={20} />
                             <span>Assets</span>
+                        </Link>
+
+                        <Link to="/marketplace" className="flex items-center gap-4" style={{ color: 'var(--text-muted)' }}>
+                            <ShoppingBag size={20} />
+                            <span>Marketplace</span>
                         </Link>
                     </>
                 )}

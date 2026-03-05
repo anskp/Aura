@@ -8,6 +8,7 @@ import UserDashboard from './pages/user/UserDashboard';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import AssetDashboard from './pages/user/AssetDashboard';
 import AssetOnboardingPage from './pages/user/AssetOnboardingPage';
+import Marketplace from './pages/user/Marketplace';
 import Navbar from './components/Navbar';
 import './index.css';
 
@@ -66,6 +67,14 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute>
             <AssetOnboardingPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/marketplace"
+        element={
+          <ProtectedRoute>
+            <Marketplace />
           </ProtectedRoute>
         }
       />

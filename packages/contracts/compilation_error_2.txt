@@ -1,0 +1,12 @@
+[dotenv@17.3.1] injecting env (26) from .env -- tip: ΓÜÖ∩╕Å  load multiple .env files with { path: ['.env.local', '.env'] }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ≡ƒñû agentic secret storage: https://dotenvx.com/as2
+ParserError: Function, variable, struct or modifier declaration expected.
+   --> contracts/LiquidityPool.sol:108:5:
+    |
+108 |     interface IAuraRwaMintable {
+    |     ^^^^^^^^^
+
+
+Error HH600: Compilation failed
+
+For more info go to https://hardhat.org/HH600 or run Hardhat with --show-stack-traces

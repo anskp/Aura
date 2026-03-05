@@ -1,0 +1,12 @@
+[dotenv@17.3.1] injecting env (26) from .env -- tip: ΓÜÖ∩╕Å  enable debug logging with { debug: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ≡ƒöÉ prevent building .env in docker: https://dotenvx.com/prebuild
+ParserError: Function, variable, struct or modifier declaration expected.
+   --> contracts/LiquidityPool.sol:103:5:
+    |
+103 |     interface IAuraRwaMintable {
+    |     ^^^^^^^^^
+
+
+
+Error HH600: Compilation failed
+For more info go to https://hardhat.org/HH600 or run Hardhat with --show-stack-traces

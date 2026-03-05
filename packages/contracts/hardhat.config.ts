@@ -15,7 +15,7 @@ const ETHEREUM_SEPOLIA_RPC_URL = process.env.ETHEREUM_SEPOLIA_RPC_URL;
 const AVALANCHE_FUJI_RPC_URL = process.env.AVALANCHE_FUJI_RPC_URL;
 
 const config: HardhatUserConfig = {
-  // preprocess: remapImportPaths(),
+  preprocess: remapImportPaths(),
   solidity: {
     version: "0.8.24",
     settings: {
@@ -39,6 +39,10 @@ const config: HardhatUserConfig = {
       url: AVALANCHE_FUJI_RPC_URL ?? "",
       accounts: PRIVATE_KEY ? [PRIVATE_KEY] : [],
       chainId: 43113,
+    },
+    localhost: {
+      url: "http://127.0.0.1:8545",
+      chainId: 31337,
     },
   },
   paths: {

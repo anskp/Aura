@@ -7,6 +7,8 @@ const AdminDashboard = () => {
     const [assets, setAssets] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
+    const [selectedAsset, setSelectedAsset] = useState(null);
+    const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
 
     useEffect(() => {
         fetchData();
@@ -63,10 +65,11 @@ const AdminDashboard = () => {
                         <thead>
                             <tr style={{ textAlign: 'left', background: 'rgba(255,255,255,0.03)' }}>
                                 <th style={{ padding: '1rem' }}>Asset</th>
+                                <th style={{ padding: '1rem' }}>Details</th>
                                 <th style={{ padding: '1rem' }}>Owner</th>
-                                <th style={{ padding: '1rem' }}>Valuation</th>
+                                <th style={{ padding: '1rem' }}>Valuations</th>
                                 <th style={{ padding: '1rem' }}>Status</th>
-                                <th style={{ padding: '1rem' }}>Actions</th>
+                                <th style={{ padding: '1rem', textAlign: 'right' }}>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -79,8 +82,17 @@ const AdminDashboard = () => {
                                             <div style={{ fontWeight: 'bold' }}>{asset.name}</div>
                                             <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{asset.symbol} • {asset.type}</div>
                                         </td>
+                                        <td style={{ padding: '1rem' }}>
+                                            <div style={{ maxWidth: '200px', fontSize: '0.8125rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                {asset.description || "N/A"}
+                                            </div>
+                                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{asset.location || "Global"}</div>
+                                        </td>
                                         <td style={{ padding: '1rem' }}>{asset.owner?.email || 'Unknown'}</td>
-                                        <td style={{ padding: '1rem' }}>${asset.valuation.toLocaleString()}</td>
+                                        <td style={{ padding: '1rem' }}>
+                                            <div style={{ fontSize: '0.875rem' }}>User: <span style={{ fontWeight: 'bold' }}>${asset.valuation.toLocaleString()}</span></div>
+                                            <div style={{ fontSize: '0.875rem', color: '#60a5fa' }}>AI: <span style={{ fontWeight: 'bold' }}>${asset.aiPricing ? asset.aiPricing.toLocaleString() : 'N/A'}</span></div>
+                                        </td>
                                         <td style={{ padding: '1rem' }}>
                                             <span style={{
                                                 display: 'flex',
@@ -90,23 +102,35 @@ const AdminDashboard = () => {
                                                 borderRadius: '999px',
                                                 fontSize: '0.75rem',
                                                 width: 'fit-content',
-                                                background: asset.status === 'ONBOARDED' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(245, 158, 11, 0.1)',
-                                                color: asset.status === 'ONBOARDED' ? '#10b981' : '#f59e0b'
+                                                background: ['APPROVED', 'TOKENIZED', 'LISTED'].includes(asset.status) ? 'rgba(16, 185, 129, 0.1)' : 'rgba(245, 158, 11, 0.1)',
+                                                color: ['APPROVED', 'TOKENIZED', 'LISTED'].includes(asset.status) ? '#10b981' : '#f59e0b'
                                             }}>
-                                                {asset.status === 'ONBOARDED' ? <CheckCircle size={12} /> : <Clock size={12} />}
+                                                {['APPROVED', 'TOKENIZED', 'LISTED'].includes(asset.status) ? <CheckCircle size={12} /> : <Clock size={12} />}
                                                 {asset.status}
                                             </span>
                                         </td>
-                                        <td style={{ padding: '1rem' }}>
-                                            {asset.status === 'PENDING' && (
+                                        <td style={{ padding: '1rem', textAlign: 'right' }}>
+                                            <div className="flex gap-2 justify-end">
                                                 <button
-                                                    onClick={() => handleApproveAsset(asset.id)}
-                                                    className="small"
-                                                    style={{ background: 'var(--accent)', padding: '0.4rem 0.8rem', fontSize: '0.75rem' }}
+                                                    onClick={() => {
+                                                        setSelectedAsset(asset);
+                                                        setIsDetailModalOpen(true);
+                                                    }}
+                                                    className="small secondary"
+                                                    style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem' }}
                                                 >
-                                                    Approve & Onboard
+                                                    Full Info
                                                 </button>
-                                            )}
+                                                {asset.status === 'PENDING' && (
+                                                    <button
+                                                        onClick={() => handleApproveAsset(asset.id)}
+                                                        className="small"
+                                                        style={{ background: 'var(--accent)', padding: '0.4rem 0.8rem', fontSize: '0.75rem' }}
+                                                    >
+                                                        Approve
+                                                    </button>
+                                                )}
+                                            </div>
                                         </td>
                                     </tr>
                                 ))
@@ -159,6 +183,85 @@ const AdminDashboard = () => {
                     </table>
                 </div>
             </section>
+            {/* Asset Detail Modal */}
+            {isDetailModalOpen && selectedAsset && (
+                <div style={{
+                    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                    background: 'rgba(0,0,0,0.85)', zIndex: 1000,
+                    display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '1rem'
+                }}>
+                    <div className="glass-card" style={{ width: '100%', maxWidth: '600px', padding: '2rem', position: 'relative' }}>
+                        <button
+                            onClick={() => setIsDetailModalOpen(false)}
+                            style={{ position: 'absolute', top: '1rem', right: '1rem', background: 'none', border: 'none', color: 'var(--text-muted)' }}
+                        >
+                            Close
+                        </button>
+
+                        <h2 className="mb-2">{selectedAsset.name}</h2>
+                        <div className="flex items-center gap-2 mb-6" style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>
+                            <span style={{ padding: '0.2rem 0.5rem', background: 'var(--glass)', borderRadius: '4px' }}>{selectedAsset.symbol}</span>
+                            <span>•</span>
+                            <span>{selectedAsset.type}</span>
+                            <span>•</span>
+                            <span style={{ color: selectedAsset.status === 'ONBOARDED' ? 'var(--accent)' : '#f59e0b' }}>{selectedAsset.status}</span>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-6 mb-6">
+                            <div>
+                                <h4 style={{ color: 'var(--text-muted)', marginBottom: '0.25rem' }}>User Valuation</h4>
+                                <div style={{ fontSize: '1.25rem', fontWeight: 'bold' }}>${selectedAsset.valuation.toLocaleString()}</div>
+                            </div>
+                            <div>
+                                <h4 style={{ color: 'var(--text-muted)', marginBottom: '0.25rem' }}>AI Recommended</h4>
+                                <div style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#60a5fa' }}>
+                                    ${selectedAsset.aiPricing ? selectedAsset.aiPricing.toLocaleString() : 'N/A'}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="mb-6">
+                            <h4 style={{ color: 'var(--text-muted)', marginBottom: '0.5rem' }}>Asset Description</h4>
+                            <p style={{ background: 'rgba(255,255,255,0.02)', padding: '1rem', borderRadius: '8px', fontSize: '0.9rem', lineHeight: '1.5' }}>
+                                {selectedAsset.description || "No description provided."}
+                            </p>
+                        </div>
+
+                        <div className="mb-6">
+                            <h4 style={{ color: 'var(--text-muted)', marginBottom: '0.25rem' }}>Location</h4>
+                            <div style={{ fontSize: '0.9rem' }}>{selectedAsset.location || "Global / Digital"}</div>
+                        </div>
+
+                        {selectedAsset.aiReasoning && (
+                            <div className="mb-6" style={{ background: 'rgba(96, 165, 250, 0.05)', padding: '1rem', borderRadius: '8px', borderLeft: '4px solid #60a5fa' }}>
+                                <h4 style={{ color: '#60a5fa', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                    <AlertCircle size={16} /> AI Valuation Insights
+                                </h4>
+                                <p style={{ fontSize: '0.85rem', lineHeight: '1.5', margin: 0 }}>
+                                    {selectedAsset.aiReasoning}
+                                </p>
+                            </div>
+                        )}
+
+                        <div className="flex justify-between items-center mt-8">
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                Owner: <span style={{ color: 'var(--text-main)' }}>{selectedAsset.owner?.email}</span>
+                            </div>
+                            {selectedAsset.status === 'PENDING' && (
+                                <button
+                                    onClick={() => {
+                                        handleApproveAsset(selectedAsset.id);
+                                        setIsDetailModalOpen(false);
+                                    }}
+                                    style={{ background: 'var(--accent)', width: 'auto', padding: '0.75rem 2rem' }}
+                                >
+                                    Approve Valuation
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

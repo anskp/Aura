@@ -11,8 +11,12 @@ const protect = async (req, res, next) => {
 
             req.user = await prisma.user.findUnique({
                 where: { id: decoded.id },
-                select: { id: true, email: true, role: true, kycStatus: true, createdAt: true, updatedAt: true },
+                include: { wallets: true }
             });
+
+            if (req.user) {
+                delete req.user.password;
+            }
 
             if (!req.user) {
                 return res.status(401).json({ error: 'User not found' });

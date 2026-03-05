@@ -7,5 +7,7 @@ router.post('/onboard', protect, assetController.onboardAsset);
 router.get('/my-assets', protect, assetController.getUserAssets);
 router.get('/admin/all', protect, assetController.getAllAssets);
 router.post('/admin/approve/:id', protect, assetController.approveAsset);
+router.post('/finalize-tokenization/:id', protect, assetController.finalizeTokenization);
+router.post('/finalize-listing/:id', protect, assetController.finalizeListing);
 
 module.exports = router;

@@ -33,6 +33,9 @@ task("deploy-core", "Deploys the protocol core stack")
       throw new Error("SEPOLIA_ROUTER, FUJI_ROUTER and SEPOLIA_LINK are required");
     }
 
+    const stablecoin = await (await hre.ethers.getContractFactory("MockERC20")).deploy("Mock USDC", "mUSDC");
+    await stablecoin.waitForDeployment();
+
     const identity = await (await hre.ethers.getContractFactory("IdentityRegistry")).deploy(deployer.address);
     await identity.waitForDeployment();
 
@@ -58,6 +61,7 @@ task("deploy-core", "Deploys the protocol core stack")
       await hre.ethers.getContractFactory("LiquidityPool")
     ).deploy(
       deployer.address,
+      await stablecoin.getAddress(),
       await token.getAddress(),
       await nav.getAddress(),
       await por.getAddress(),
@@ -126,6 +130,9 @@ task("deploy-core", "Deploys the protocol core stack")
     await (await coordinator.grantRole(updaterRole, await oracleConsumer.getAddress())).wait();
     await (await token.grantRole(bridgeRole, await ccipSender.getAddress())).wait();
 
+    const issuerRole = hre.ethers.keccak256(hre.ethers.toUtf8Bytes("ISSUER_ROLE"));
+    await (await token.grantRole(issuerRole, await pool.getAddress())).wait();
+
     const creReporter = process.env.CRE_REPORTER;
     if (creReporter && creReporter.length > 0) {
       await (await oracleConsumer.grantRole(reporterRole, creReporter)).wait();
@@ -151,6 +158,7 @@ task("deploy-core", "Deploys the protocol core stack")
     console.log("ccipReceiver:", await ccipReceiver.getAddress());
     console.log("oracleConsumer:", await oracleConsumer.getAddress());
     console.log("ccipConsumer:", await ccipConsumer.getAddress());
+    console.log("stablecoin (Mock USDC):", await stablecoin.getAddress());
     if (creReporter) console.log("creReporter:", creReporter);
     console.log("poolId:", poolId);
     console.log("assetId:", assetId);

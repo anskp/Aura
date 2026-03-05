@@ -36,16 +36,25 @@ const UserDashboard = () => {
     };
 
     const connectWallet = async () => {
-        if (!window.ethereum) {
-            alert('Please install MetaMask');
+        let ethereum = window.ethereum;
+
+        // Handle multiple providers (e.g., MetaMask and Phantom)
+        if (ethereum?.providers) {
+            ethereum = ethereum.providers.find(p => p.isMetaMask) || ethereum.providers[0];
+        }
+
+        if (!ethereum) {
+            alert('No Web3 wallet detected. Please install MetaMask.');
             return;
         }
 
         setConnecting(true);
         try {
-            const provider = new ethers.BrowserProvider(window.ethereum);
+            const provider = new ethers.BrowserProvider(ethereum);
             const accounts = await provider.send("eth_requestAccounts", []);
             const network = await provider.getNetwork();
+
+            console.log(`[Action] Connected to wallet: ${accounts[0]} on chain ${network.chainId}`);
 
             let chain = 'UNKNOWN';
             const chainId = Number(network.chainId);

@@ -14,14 +14,44 @@ model Asset {
   description      String?      @db.Text
   type             AssetType
   valuation        Decimal
+  aiPricing        Decimal?     // AI Recommended Pricing
+  aiReasoning      String?      @db.Text
+  nav              Decimal?     // Current NAV
+  por              Decimal?     // Proof of Reserve value
+  tokenAddress     String?      // Deployed ERC3643 address
   location         String?
   status           AssetStatus  @default(PENDING)
   companyName      String?
   companyRegNumber String?
   owner            user         @relation(fields: [ownerId], references: [id])
   ownerId          Int
+  token            Token?
+  pool             Pool?
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
+}
+
+model Token {
+  id           Int      @id @default(autoincrement())
+  name         String
+  symbol       String
+  address      String   @unique
+  assetId      Int      @unique
+  asset        Asset    @relation(fields: [assetId], references: [id])
+  navOracle    String?  
+  porContract  String?  
+  createdAt    DateTime @default(now())
+}
+
+model Pool {
+  id                Int      @id @default(autoincrement())
+  address           String   @unique
+  assetId           Int      @unique
+  asset             Asset    @relation(fields: [assetId], references: [id])
+  stablecoinAddress String   
+  totalLiquidity    Decimal  @default(0)
+  status            PoolStatus @default(ACTIVE)
+  createdAt         DateTime @default(now())
 }
 
 model user {
@@ -89,6 +119,14 @@ enum AssetType {
 
 enum AssetStatus {
   PENDING
+  APPROVED
+  TOKENIZED
+  LISTED
   ONBOARDED
+}
+
+enum PoolStatus {
+  ACTIVE
+  CLOSED
 }
 

@@ -1,20 +1,22 @@
-# Deployed Contract Addresses (Ethereum Sepolia)
+# Deployed Contract Addresses (Local Hardhat Network)
+*Note: These addresses are generated on a per-deployment basis on the local node.*
 
 | Contract Name | Address |
 | --- | --- |
-| **Identity Registry** | `0xC9CcbF9d29eE599B6A1790112439387a235c0eAe` |
-| **Compliance Registry** | `0xa1549874980F2f563d304E995a0cD9C5A7291300` |
-| **Aura RWA Token** | `0xb99329522A44A489eaB1138ED4266F260c13f5D6` |
-| **NAV Oracle** | `0xaf9E56B5E72C0F159c853DbEdd02245B11133CBF` |
-| **Proof of Reserve** | `0xE5D2FaCF85E358A71FaA3d0F775c4CdEB1dccBfD` |
-| **Liquidity Pool** | `0xb88621d4011eE95f09410122EFC503aa161e3d77` |
-| **Mock Oracle Provider** | `0xed95c54CF17162Da68CF1e5003Ec404f963Ef647` |
-| **Oracle Update Coordinator** | `0x98714BFfbd70B2DB37214E104e8BD5EF86242080` |
-| **Automation Registry** | `0x6F2897e2Cc270d1C28c30C4509E6CE54A9fa2e7e` |
-| **Aura CCIP Sender** | `0x7DeD3e6C49D1bF91857594d00b546D96d3Ff1eBc` |
-| **Aura CCIP Receiver** | `0xEa90909566718972cB6A67f87C7723d64a91CACf` |
-| **Oracle Consumer** | `0x7f42b6D756bC075724A19e5F9691a3da5e54fa58` |
-| **CCIP Consumer** | `0x033804C03aA014aAb2Eb552BAAe9efeab2BeE5da` |
+| **Identity Registry** | `0x70e0bA845a1A0F2DA3359C97E0285013525FFC49` |
+| **Compliance Registry** | `0x4826533B4897376654Bb4d4AD88B7faFD0C98528` |
+| **Aura RWA Token** | `0x99bbA657f2BbC93c02D617f8bA121cB8Fc104Acf` |
+| **NAV Oracle** | `0x0E801D84Fa97b50751Dbf25036d067dCf18858bF` |
+| **Proof of Reserve** | `0x8f86403A4DE0BB5791fa46B8e795C547942fE4Cf` |
+| **Liquidity Pool** | `0x9d4454B023096f34B160D6B654540c56A1F81688` |
+| **Mock Oracle Provider** | `0x5eb3Bc0a489C5A8288765d2336659EbCA68FCd00` |
+| **Oracle Update Coordinator** | `0x36C02dA8a0983159322a80FFE9F24b1acfF8B570` |
+| **Automation Registry** | `0x809d550fca64d94Bd9F66E60752A544199cfAC3D` |
+| **Aura CCIP Sender** | `0x4c5859f0F772848b2D91F1D83E2Fe57935348029` |
+| **Aura CCIP Receiver** | `0x1291Be112d480055DaFd8a610b7d1e203891C274` |
+| **Oracle Consumer** | `0x5f3f1dBD7B74C6B46e8c44f98792A1dAf8d69154` |
+| **CCIP Consumer** | `0xb7278A61aa25c888815aFC32Ad3cC52fF24fE575` |
+| **Stablecoin (Mock USDC)** | `0x998abeb3E57409262aE5b751f60747921B33613E` |
 
 ### IDs
 - **Pool ID**: `0x415552415f504f4f4c0000000000000000000000000000000000000000000000`
