@@ -149,56 +149,17 @@ const AssetDashboard = () => {
                 );
             }
 
+            // 2. Backend Oracle Sync (Handling COORDINATOR_ROLE on server)
+            console.log(`[Action] Requesting backend to sync Oracle data for ${asset.name}...`);
+            try {
+                await api.post(`/assets/sync-oracle/${asset.id}`);
+                console.log("[Action] Oracle sync successful via Backend.");
+            } catch (e) {
+                console.warn("[Action] Backend Oracle sync failed/delayed:", e.response?.data?.error || e.message);
+                console.info("[Notice] This is usually fine; a system admin will retry the sync shortly.");
+            }
+
             const signer = await BlockchainService.getSigner();
-            const poolId = ethers.keccak256(ethers.toUtf8Bytes(asset.name));
-            const assetIdBytes32 = ethers.zeroPadValue(ethers.toBeHex(asset.id), 32);
-
-            // 2. Bootstrap ORACLE Data (Crucial for avoiding StaleNav error)
-            console.log(`[Action] Bootstrapping Oracle data for ${asset.name}...`);
-            const navOracleAbi = [
-                "function setNav(bytes32 poolId, uint256 nav, uint256 timestamp, bytes32 reportId) external",
-                "error AccessControlUnauthorizedAccount(address account, bytes32 neededRole)"
-            ];
-            const porOracleAbi = [
-                "function setReserve(bytes32 assetId, uint256 reserve, uint256 timestamp, bytes32 reportId) external",
-                "error AccessControlUnauthorizedAccount(address account, bytes32 neededRole)"
-            ];
-
-            const navOracle = new ethers.Contract(navOracleAddress, navOracleAbi, signer);
-            const porOracle = new ethers.Contract(porAddress, porOracleAbi, signer);
-
-            const now = Math.floor(Date.now() / 1000);
-            const valuationWei = ethers.parseEther(asset.valuation.toString());
-
-            console.log(`[Blockchain] Setting initial NAV for ${poolId}: $${asset.valuation}`);
-            try {
-                const navTx = await navOracle.setNav(poolId, valuationWei, now, ethers.ZeroHash);
-                await navTx.wait();
-                console.log("[Blockchain] Initial NAV set successfully.");
-            } catch (e) {
-                // Check for AccessControlUnauthorizedAccount hex (0xe2517d3f)
-                if (e.data?.includes("0xe2517d3f") || e.message?.includes("0xe2517d3f") || e.message?.includes("AccessControlUnauthorizedAccount")) {
-                    console.warn(`[Blockchain] Security Note: Your wallet lacks COORDINATOR_ROLE on the shared NavOracle.`);
-                    console.warn("[Notice] This is normal for Issuers. The AI Oracle Service or a Protocol Admin will sync the NAV soon.");
-                } else {
-                    console.error("[Blockchain] Unexpected error setting NAV:", e);
-                }
-            }
-
-            console.log(`[Blockchain] Setting initial Proof of Reserve for ${assetIdBytes32}: $${asset.valuation}`);
-            try {
-                const porTx = await porOracle.setReserve(assetIdBytes32, valuationWei, now, ethers.ZeroHash);
-                await porTx.wait();
-                console.log("[Blockchain] Initial Reserve set successfully.");
-            } catch (e) {
-                // Check for AccessControlUnauthorizedAccount hex (0xe2517d3f)
-                if (e.data?.includes("0xe2517d3f") || e.message?.includes("0xe2517d3f") || e.message?.includes("AccessControlUnauthorizedAccount")) {
-                    console.warn(`[Blockchain] Security Note: Your wallet lacks COORDINATOR_ROLE on the shared PorOracle.`);
-                    console.warn("[Notice] This is normal for Issuers. The AI Oracle Service or a Protocol Admin will sync the Reserve soon.");
-                } else {
-                    console.error("[Blockchain] Unexpected error setting Reserve:", e);
-                }
-            }
 
             if (asset.status !== 'LISTED') {
                 // 3. Grant ISSUER_ROLE to the Pool
@@ -213,21 +174,15 @@ const AssetDashboard = () => {
                 await tx.wait();
             }
 
-            // 4. Ensure user has some Mock USDC for testing
+            // 4. Ensure user has some Mock USDC for testing (Backend Faucet)
             try {
-                const usdcAbi = [
-                    "function mint(address to, uint256 amount) external",
-                    "function balanceOf(address account) view returns (uint256)"
-                ];
-                const usdc = new ethers.Contract(stablecoinAddress, usdcAbi, signer);
-                const balance = await usdc.balanceOf(userWallet);
-                if (balance === 0n) {
-                    console.log(`[Action] Minting 10,000 Mock USDC for testing...`);
-                    const mintTx = await usdc.mint(userWallet, ethers.parseUnits("10000", 6));
-                    await mintTx.wait();
+                const balance = await BlockchainService.getBalance(userWallet, stablecoinAddress);
+                if (balance === '0.0') {
+                    console.log(`[Action] Requesting Backend Faucet for 1,000 USDC...`);
+                    await api.post('/assets/faucet', { address: userWallet });
                 }
             } catch (e) {
-                console.log("[Notice] Stablecoin mint skipped - likely not a mock contract or already has balance.");
+                console.warn("[Notice] Backend Faucet skipped or failed - likely already has balance.");
             }
 
             // 5. Finalize or Sync in Backend
@@ -243,6 +198,21 @@ const AssetDashboard = () => {
         } catch (err) {
             console.error('[Error] Listing failed:', err);
             alert('Listing failed: ' + err.message);
+        } finally {
+            setDeployingId(null);
+        }
+    };
+
+    const handleSyncOracle = async (asset) => {
+        setDeployingId(asset.id);
+        try {
+            console.log(`[Action] Manual Sync: Requesting backend to update Oracle for ${asset.name}...`);
+            const res = await api.post(`/assets/sync-oracle/${asset.id}`);
+            alert("Oracle Synchronization initiated on-chain via Backend!\n\nTX Nav: " + res.data.navHash.slice(0, 10) + "...\nTX Por: " + res.data.porHash.slice(0, 10) + "...");
+            fetchAssets();
+        } catch (e) {
+            console.error(e);
+            alert("Sync failed: " + (e.response?.data?.error || e.message));
         } finally {
             setDeployingId(null);
         }
@@ -341,7 +311,7 @@ const AssetDashboard = () => {
                                         <button
                                             className={`small flex items-center justify-center gap-2 ${staleMap[asset.id] ? 'accent' : 'secondary'}`}
                                             style={{ width: '100%', fontSize: '0.75rem', opacity: 1, background: staleMap[asset.id] ? 'var(--accent)' : 'transparent' }}
-                                            onClick={() => handleListInPool(asset)}
+                                            onClick={() => handleSyncOracle(asset)}
                                             disabled={deployingId === asset.id}
                                         >
                                             <Activity size={14} /> Sync On-Chain Data

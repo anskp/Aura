@@ -176,6 +176,46 @@ const getMarketplacePools = async () => {
     }));
 };
 
+const syncAssetOracle = async (assetId) => {
+    const asset = await prisma.asset.findUnique({
+        where: { id: assetId },
+        include: { token: true }
+    });
+
+    if (!asset || !asset.tokenAddress) {
+        throw new Error("Asset or token address not found");
+    }
+
+    const { ethers } = require('ethers');
+    const blockchainService = require('./blockchain.service');
+
+    const poolId = ethers.keccak256(ethers.toUtf8Bytes(asset.name));
+    const assetIdBytes32 = ethers.zeroPadValue(ethers.toBeHex(asset.id), 32);
+
+    // Use aiPricing or valuation as the source of truth for sync
+    const valuation = asset.aiPricing || asset.valuation;
+
+    console.log(`[Asset Service] Backend syncing oracle for ${asset.name}...`);
+    const hashes = await blockchainService.syncOracleData(poolId, assetIdBytes32, valuation);
+
+    // Update DB with the latest synced values
+    await prisma.asset.update({
+        where: { id: assetId },
+        data: {
+            nav: valuation,
+            por: valuation
+        }
+    });
+
+    return hashes;
+};
+
+const grantGovernanceRole = async (walletAddress) => {
+    console.log(`[Asset Service] Backend granting coordinator role to ${walletAddress}...`);
+    const blockchainService = require('./blockchain.service');
+    return await blockchainService.grantCoordinatorRole(walletAddress);
+};
+
 module.exports = {
     onboardAsset,
     getUserAssets,
@@ -183,5 +223,7 @@ module.exports = {
     updateAssetStatus,
     finalizeTokenization,
     finalizeListing,
-    getMarketplacePools
+    getMarketplacePools,
+    syncAssetOracle,
+    grantGovernanceRole
 };

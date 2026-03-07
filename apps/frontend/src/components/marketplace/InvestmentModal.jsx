@@ -71,14 +71,13 @@ const InvestmentModal = ({ asset, isOpen, onClose, onSuccess }) => {
         setStatus('MINTING');
         try {
             const signer = await BlockchainService.getSigner();
-            const usdcAbi = ["function faucet() external"];
-            const usdc = new ethers.Contract(asset.stablecoinAddress, usdcAbi, signer);
-            const tx = await usdc.faucet();
-            await tx.wait();
+            const address = await signer.getAddress();
+            console.log(`[Action] Requesting Backend Faucet for ${address}...`);
+            await api.post('/assets/faucet', { address });
             await fetchDiagnostics();
-            alert("1,000 Mock USDC minted to your wallet via Faucet!");
+            alert("1,000 Mock USDC sent to your wallet via Backend Faucet!");
         } catch (e) {
-            alert("Faucet failed: " + e.message);
+            alert("Faucet failed: " + (e.response?.data?.error || e.message));
         } finally {
             setLoading(false);
             setStatus('IDLE');

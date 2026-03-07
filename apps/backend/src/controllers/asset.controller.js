@@ -86,6 +86,46 @@ const getMarketplacePools = async (req, res) => {
     }
 };
 
+const syncOracle = async (req, res) => {
+    try {
+        const { id } = req.params;
+        console.log(`[API] Syncing oracle for asset ID: ${id}`);
+        const result = await assetService.syncAssetOracle(parseInt(id));
+        res.status(200).json(result);
+    } catch (error) {
+        console.error(`[API Error] syncOracle: ${error.message}`);
+        res.status(400).json({ error: error.message });
+    }
+};
+
+const grantRole = async (req, res) => {
+    try {
+        if (req.user.role !== 'ADMIN') {
+            return res.status(403).json({ error: 'Forbidden' });
+        }
+        const { address } = req.body;
+        console.log(`[API] Granting coordinator role to: ${address}`);
+        const result = await assetService.grantGovernanceRole(address);
+        res.status(200).json(result);
+    } catch (error) {
+        console.error(`[API Error] grantRole: ${error.message}`);
+        res.status(400).json({ error: error.message });
+    }
+};
+
+const requestFaucet = async (req, res) => {
+    try {
+        const { address } = req.body;
+        console.log(`[API] Faucet request for: ${address}`);
+        const blockchainService = require('../services/blockchain.service');
+        const hash = await blockchainService.mintMockUSDC(address, 1000);
+        res.status(200).json({ hash });
+    } catch (error) {
+        console.error(`[API Error] requestFaucet: ${error.message}`);
+        res.status(400).json({ error: error.message });
+    }
+};
+
 module.exports = {
     onboardAsset,
     getUserAssets,
@@ -93,5 +133,8 @@ module.exports = {
     approveAsset,
     finalizeTokenization,
     finalizeListing,
-    getMarketplacePools
+    getMarketplacePools,
+    syncOracle,
+    grantRole,
+    requestFaucet
 };

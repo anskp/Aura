@@ -212,32 +212,13 @@ const AdminDashboard = () => {
                                     if (!ethers.isAddress(addr)) return alert("Invalid address");
 
                                     try {
-                                        const signer = await BlockchainService.getSigner();
-                                        const navOracleAddr = import.meta.env.VITE_NAV_ORACLE_ADDRESS;
-                                        const porOracleAddr = import.meta.env.VITE_POR_ORACLE_ADDRESS;
+                                        console.log(`[Governance] Requesting backend to grant role to ${addr}...`);
+                                        const res = await api.post('/assets/admin/grant-role', { address: addr });
 
-                                        if (!navOracleAddr || !porOracleAddr) throw new Error("Oracle addresses not configured");
-
-                                        const abi = [
-                                            "function grantRole(bytes32 role, address account) external",
-                                            "function COORDINATOR_ROLE() view returns (bytes32)"
-                                        ];
-
-                                        console.log(`[Governance] Granting role to ${addr} on NavOracle...`);
-                                        const navOracle = new ethers.Contract(navOracleAddr, abi, signer);
-                                        const role = await navOracle.COORDINATOR_ROLE();
-                                        const tx1 = await navOracle.grantRole(role, addr);
-                                        await tx1.wait();
-
-                                        console.log(`[Governance] Granting role to ${addr} on PorOracle...`);
-                                        const porOracle = new ethers.Contract(porOracleAddr, abi, signer);
-                                        const tx2 = await porOracle.grantRole(role, addr);
-                                        await tx2.wait();
-
-                                        alert("COORDINATOR_ROLE successfully granted on shared Oracles!");
+                                        alert("COORDINATOR_ROLE successfully granted via Backend!\n\nTX Nav: " + res.data.navHash.slice(0, 10) + "...\nTX Por: " + res.data.porHash.slice(0, 10) + "...");
                                     } catch (e) {
                                         console.error(e);
-                                        alert("Governance failed: " + (e.reason || e.message));
+                                        alert("Governance failed: " + (e.response?.data?.error || e.message));
                                     }
                                 }}
                                 style={{ width: 'auto', background: 'var(--accent)', padding: '0 1.5rem', fontWeight: 600 }}
