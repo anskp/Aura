@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
-import { Plus, Box, Calendar, MapPin, Tag, Activity, Rocket, List, Loader2 } from 'lucide-react';
+import { Plus, Box, Calendar, MapPin, Tag, Activity, Rocket, List, Loader2, AlertCircle } from 'lucide-react';
 import { BlockchainService } from '../../services/blockchain.service';
 import { useAuth } from '../../context/AuthContext';
 import { ethers } from 'ethers';
@@ -10,12 +10,48 @@ const AssetDashboard = () => {
     const [assets, setAssets] = useState([]);
     const [loading, setLoading] = useState(true);
     const [deployingId, setDeployingId] = useState(null);
+    const [staleMap, setStaleMap] = useState({}); // assetId -> boolean (isStale)
     const navigate = useNavigate();
     const { user } = useAuth();
 
     useEffect(() => {
         fetchAssets();
     }, []);
+
+    useEffect(() => {
+        if (assets.length > 0) {
+            checkOracleFreshness();
+        }
+    }, [assets]);
+
+    const checkOracleFreshness = async () => {
+        try {
+            const signer = await BlockchainService.getSigner();
+            const navOracleAddr = import.meta.env.VITE_NAV_ORACLE_ADDRESS;
+            const abi = ["function latestNav(bytes32) view returns (uint256, uint256)"];
+            const navOracle = new ethers.Contract(navOracleAddr, abi, signer);
+
+            const newStaleMap = {};
+            for (const asset of assets) {
+                if (asset.status === 'LISTED') {
+                    try {
+                        const poolId = ethers.keccak256(ethers.toUtf8Bytes(asset.name));
+                        const [_, timestamp] = await navOracle.latestNav(poolId);
+
+                        const now = Math.floor(Date.now() / 1000);
+                        const isStale = (now - Number(timestamp)) > 86400; // 24 hours
+                        newStaleMap[asset.id] = isStale || timestamp === 0n;
+                    } catch (e) {
+                        console.warn(`Failed to check freshness for ${asset.name}:`, e.message);
+                        newStaleMap[asset.id] = true; // Assume stale on error
+                    }
+                }
+            }
+            setStaleMap(newStaleMap);
+        } catch (err) {
+            console.error("Freshness check failed:", err);
+        }
+    };
 
     const fetchAssets = async () => {
         try {
@@ -119,8 +155,14 @@ const AssetDashboard = () => {
 
             // 2. Bootstrap ORACLE Data (Crucial for avoiding StaleNav error)
             console.log(`[Action] Bootstrapping Oracle data for ${asset.name}...`);
-            const navOracleAbi = ["function setNav(bytes32 poolId, uint256 nav, uint256 timestamp, bytes32 reportId) external"];
-            const porOracleAbi = ["function setReserve(bytes32 assetId, uint256 reserve, uint256 timestamp, bytes32 reportId) external"];
+            const navOracleAbi = [
+                "function setNav(bytes32 poolId, uint256 nav, uint256 timestamp, bytes32 reportId) external",
+                "error AccessControlUnauthorizedAccount(address account, bytes32 neededRole)"
+            ];
+            const porOracleAbi = [
+                "function setReserve(bytes32 assetId, uint256 reserve, uint256 timestamp, bytes32 reportId) external",
+                "error AccessControlUnauthorizedAccount(address account, bytes32 neededRole)"
+            ];
 
             const navOracle = new ethers.Contract(navOracleAddress, navOracleAbi, signer);
             const porOracle = new ethers.Contract(porAddress, porOracleAbi, signer);
@@ -128,13 +170,35 @@ const AssetDashboard = () => {
             const now = Math.floor(Date.now() / 1000);
             const valuationWei = ethers.parseEther(asset.valuation.toString());
 
-            console.log(`[Blockchain] Setting initial NAV: $${asset.valuation}`);
-            const navTx = await navOracle.setNav(poolId, valuationWei, now, ethers.ZeroHash);
-            await navTx.wait();
+            console.log(`[Blockchain] Setting initial NAV for ${poolId}: $${asset.valuation}`);
+            try {
+                const navTx = await navOracle.setNav(poolId, valuationWei, now, ethers.ZeroHash);
+                await navTx.wait();
+                console.log("[Blockchain] Initial NAV set successfully.");
+            } catch (e) {
+                // Check for AccessControlUnauthorizedAccount hex (0xe2517d3f)
+                if (e.data?.includes("0xe2517d3f") || e.message?.includes("0xe2517d3f") || e.message?.includes("AccessControlUnauthorizedAccount")) {
+                    console.warn(`[Blockchain] Security Note: Your wallet lacks COORDINATOR_ROLE on the shared NavOracle.`);
+                    console.warn("[Notice] This is normal for Issuers. The AI Oracle Service or a Protocol Admin will sync the NAV soon.");
+                } else {
+                    console.error("[Blockchain] Unexpected error setting NAV:", e);
+                }
+            }
 
-            console.log(`[Blockchain] Setting initial Proof of Reserve: $${asset.valuation}`);
-            const porTx = await porOracle.setReserve(assetIdBytes32, valuationWei, now, ethers.ZeroHash);
-            await porTx.wait();
+            console.log(`[Blockchain] Setting initial Proof of Reserve for ${assetIdBytes32}: $${asset.valuation}`);
+            try {
+                const porTx = await porOracle.setReserve(assetIdBytes32, valuationWei, now, ethers.ZeroHash);
+                await porTx.wait();
+                console.log("[Blockchain] Initial Reserve set successfully.");
+            } catch (e) {
+                // Check for AccessControlUnauthorizedAccount hex (0xe2517d3f)
+                if (e.data?.includes("0xe2517d3f") || e.message?.includes("0xe2517d3f") || e.message?.includes("AccessControlUnauthorizedAccount")) {
+                    console.warn(`[Blockchain] Security Note: Your wallet lacks COORDINATOR_ROLE on the shared PorOracle.`);
+                    console.warn("[Notice] This is normal for Issuers. The AI Oracle Service or a Protocol Admin will sync the Reserve soon.");
+                } else {
+                    console.error("[Blockchain] Unexpected error setting Reserve:", e);
+                }
+            }
 
             if (asset.status !== 'LISTED') {
                 // 3. Grant ISSUER_ROLE to the Pool
@@ -265,12 +329,18 @@ const AssetDashboard = () => {
                                 )}
                                 {asset.status === 'LISTED' && (
                                     <div className="space-y-2">
-                                        <div className="text-center text-green-400 font-bold flex items-center justify-center gap-2 mb-2">
-                                            <Box size={16} /> Active in Marketplace
+                                        <div className={`text-center font-bold flex items-center justify-center gap-2 mb-2 ${staleMap[asset.id] ? 'text-amber-500' : 'text-green-400'}`}>
+                                            {staleMap[asset.id] ? <AlertCircle size={16} /> : <Box size={16} />}
+                                            {staleMap[asset.id] ? 'Stale Oracle Data' : 'Active in Marketplace'}
                                         </div>
+                                        {staleMap[asset.id] && (
+                                            <p style={{ fontSize: '0.65rem', color: '#f59e0b', textAlign: 'center', marginBottom: '0.5rem', fontStyle: 'italic' }}>
+                                                Investment might revert until synchronized.
+                                            </p>
+                                        )}
                                         <button
-                                            className="small secondary flex items-center justify-center gap-2"
-                                            style={{ width: '100%', fontSize: '0.75rem', opacity: 0.8 }}
+                                            className={`small flex items-center justify-center gap-2 ${staleMap[asset.id] ? 'accent' : 'secondary'}`}
+                                            style={{ width: '100%', fontSize: '0.75rem', opacity: 1, background: staleMap[asset.id] ? 'var(--accent)' : 'transparent' }}
                                             onClick={() => handleListInPool(asset)}
                                             disabled={deployingId === asset.id}
                                         >

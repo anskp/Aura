@@ -124,11 +124,17 @@ const InvestmentModal = ({ asset, isOpen, onClose, onSuccess }) => {
             console.error('[Error] Investment failed:', err);
 
             // Helpful Diagnostics for the User
-            if (err.message.includes('CALL_EXCEPTION') || err.message.includes('revert')) {
+            if (err.data?.includes("0x3938508e") || err.message?.includes("0x3938508e")) {
+                setRevertHelp({
+                    title: "Stale Oracle Data",
+                    message: "The pool rejected this trade because the on-chain price (NAV) has not been updated recently.",
+                    solution: "An Admin must grant you the COORDINATOR_ROLE in the Admin Panel, then you can click 'Sync On-Chain Data' in your Dashboard."
+                });
+            } else if (err.message.includes('CALL_EXCEPTION') || err.message.includes('revert')) {
                 setRevertHelp({
                     title: "Transaction Reverted",
-                    message: "The blockchain rejected this trade. This usually happens if the pool is paused, the oracle data is stale, or your balance is too low.",
-                    solution: "Try clicking 'Sync On-Chain Data' in your Asset Dashboard for this asset first."
+                    message: "The blockchain rejected this trade. This usually happens if the pool is paused or your balance is too low.",
+                    solution: "Check your USDC balance or ensure you are using the correct wallet."
                 });
             } else {
                 alert('Investment failed: ' + (err.reason || err.message));

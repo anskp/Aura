@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import api from '../../services/api';
-import { UserCheck, UserX, AlertCircle, CheckCircle, Clock, Package } from 'lucide-react';
+import { UserCheck, UserX, AlertCircle, CheckCircle, Clock, Package, Shield } from 'lucide-react';
+import { ethers } from 'ethers';
+import { BlockchainService } from '../../services/blockchain.service';
 
 const AdminDashboard = () => {
     const [users, setUsers] = useState([]);
@@ -181,6 +183,69 @@ const AdminDashboard = () => {
                             ))}
                         </tbody>
                     </table>
+                </div>
+            </section>
+
+            {/* System Governance */}
+            <section className="mb-10">
+                <div className="flex items-center gap-2 mb-4">
+                    <Shield className="text-secondary" size={24} style={{ color: '#6366f1' }} />
+                    <h2 style={{ margin: 0 }}>System Governance</h2>
+                </div>
+                <div className="glass-card" style={{ padding: '2rem' }}>
+                    <div style={{ maxWidth: '600px' }}>
+                        <h4 className="mb-2">On-Chain Role Management</h4>
+                        <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginBottom: '1.5rem' }}>
+                            Grant a wallet permission to update Net Asset Value (NAV) and Proof of Reserve (PoR) data on the shared oracles.
+                            This is required for Issuers to sync their own asset data during testing.
+                        </p>
+                        <div className="flex gap-4">
+                            <input
+                                type="text"
+                                id="coordinator-address"
+                                placeholder="0x... (Wallet Address)"
+                                style={{ flex: 1, padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--card-border)', background: 'rgba(255,255,255,0.02)' }}
+                            />
+                            <button
+                                onClick={async () => {
+                                    const addr = document.getElementById('coordinator-address').value;
+                                    if (!ethers.isAddress(addr)) return alert("Invalid address");
+
+                                    try {
+                                        const signer = await BlockchainService.getSigner();
+                                        const navOracleAddr = import.meta.env.VITE_NAV_ORACLE_ADDRESS;
+                                        const porOracleAddr = import.meta.env.VITE_POR_ORACLE_ADDRESS;
+
+                                        if (!navOracleAddr || !porOracleAddr) throw new Error("Oracle addresses not configured");
+
+                                        const abi = [
+                                            "function grantRole(bytes32 role, address account) external",
+                                            "function COORDINATOR_ROLE() view returns (bytes32)"
+                                        ];
+
+                                        console.log(`[Governance] Granting role to ${addr} on NavOracle...`);
+                                        const navOracle = new ethers.Contract(navOracleAddr, abi, signer);
+                                        const role = await navOracle.COORDINATOR_ROLE();
+                                        const tx1 = await navOracle.grantRole(role, addr);
+                                        await tx1.wait();
+
+                                        console.log(`[Governance] Granting role to ${addr} on PorOracle...`);
+                                        const porOracle = new ethers.Contract(porOracleAddr, abi, signer);
+                                        const tx2 = await porOracle.grantRole(role, addr);
+                                        await tx2.wait();
+
+                                        alert("COORDINATOR_ROLE successfully granted on shared Oracles!");
+                                    } catch (e) {
+                                        console.error(e);
+                                        alert("Governance failed: " + (e.reason || e.message));
+                                    }
+                                }}
+                                style={{ width: 'auto', background: 'var(--accent)', padding: '0 1.5rem', fontWeight: 600 }}
+                            >
+                                Grant Role
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </section>
             {/* Asset Detail Modal */}
