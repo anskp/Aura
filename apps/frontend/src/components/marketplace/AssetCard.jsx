@@ -1,71 +1,167 @@
 import React from 'react';
-import { Palette, Landmark, Coins, Leaf, Package, ArrowUpRight, TrendingUp, Users } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { BrainCircuit, BadgeCheck } from 'lucide-react';
 
-const AssetCard = ({ asset, onInvest }) => {
-    const getIcon = () => {
-        switch (asset.type) {
-            case 'ART': return <Palette size={24} />;
-            case 'METAL': return <Coins size={24} />;
-            case 'REAL_ESTATE': return <Landmark size={24} />;
-            case 'CARBON': return <Leaf size={24} />;
-            default: return <Package size={24} />;
-        }
-    };
+const AssetCard = ({ asset, onInvest, isPreview = false, customAction = null }) => {
+    // Generate some mock/fallback data for aesthetic purposes
+    const aiConfidence = 90 + (asset.id ? asset.id % 9 : 5);
+    const mockImage = asset.image || 'https://images.unsplash.com/photo-1618044733300-94f4bf0082c3?auto=format&fit=crop&q=80&w=1000';
+    const issuerName = asset.companyName || 'Aura Protocol';
+    const issuerLogo = `https://ui-avatars.com/api/?name=${encodeURIComponent(issuerName)}&background=218d34&color=fff`;
+
+    // Derived values
+    const roi = asset.roi || `${(10 + (asset.id ? asset.id % 5 : 2))}%`;
+    const cagr = asset.cagr || `${(12 + (asset.id ? asset.id % 6 : 4))}%`;
+    const strategy = asset.investmentStrategy || 'Capital Growth';
+
+    // Status formatting
+    let statusText = 'Available';
+    let statusColor = 'text-gray-500';
+    if (asset.status === 'LISTED' || asset.status === 'OPEN') {
+        statusText = 'Live Now';
+        statusColor = 'text-emerald-600 bg-emerald-50 border-emerald-100';
+    } else if (asset.status === 'PENDING' || asset.status === 'TOKENIZED') {
+        statusText = 'Coming Soon';
+        statusColor = 'text-amber-600 bg-amber-50 border-amber-100 animate-pulse';
+    }
 
     return (
-        <div className="glass-card glow-card animate-slide-up" style={{ padding: '0', overflow: 'hidden', height: '100%', display: 'flex', flexDirection: 'column' }}>
-            <div style={{
-                height: '160px',
-                background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(16, 185, 129, 0.05) 100%)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                position: 'relative',
-                borderBottom: '1px solid var(--card-border)'
-            }}>
-                <div className="badge badge-primary" style={{ position: 'absolute', top: '1rem', right: '1rem' }}>
-                    {asset.type}
-                </div>
-                <div style={{ color: 'var(--primary)', opacity: 0.8 }}>
-                    {getIcon()}
-                </div>
-            </div>
+        <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+            className="group relative bg-white dark:bg-slate-900 rounded-2xl overflow-hidden shadow-sm hover:shadow-2xl transition-all duration-500 h-[420px] border border-slate-200 dark:border-slate-800"
+        >
+            {/* Sliding Container */}
+            <div className="absolute inset-0 flex w-[200%] transition-transform duration-500 ease-in-out -translate-x-0 group-hover:-translate-x-1/2">
 
-            <div style={{ padding: '1.5rem', flex: 1, display: 'flex', flexDirection: 'column' }}>
-                <h3 style={{ margin: 0, fontSize: '1.25rem', marginBottom: '0.5rem' }} className="text-gradient">
-                    {asset.name}
-                </h3>
-                <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginBottom: '1.5rem', lineHeight: '1.5', height: '2.6rem', overflow: 'hidden' }}>
-                    {asset.description || 'Institutional grade RWA asset fractionalized on AURA.'}
-                </p>
+                {/* 1. Initial State (Full Image View) */}
+                <div className="w-1/2 h-full relative">
+                    <img
+                        src={mockImage}
+                        alt={asset.name}
+                        className="w-full h-full object-cover"
+                    />
+                    {/* Gradient Overlay for text readability */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-black/20"></div>
 
-                <div className="grid grid-cols-2 gap-4" style={{ marginBottom: '1.5rem' }}>
-                    <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
-                            <TrendingUp size={14} className="text-accent" />
-                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>NAV Price</span>
-                        </div>
-                        <div style={{ fontSize: '1.125rem', fontWeight: 700 }}>${asset.nav?.toLocaleString()}</div>
-                    </div>
-                    <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
-                            <Users size={14} style={{ color: '#60a5fa' }} />
-                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Liquidity</span>
-                        </div>
-                        <div style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--accent)' }}>
-                            ${asset.totalLiquidity ? parseFloat(asset.totalLiquidity).toLocaleString() : '0'}
+                    {/* Top Badges */}
+                    <div className="absolute top-3 left-3 flex flex-col gap-1.5 items-start">
+                        <div className="bg-white/90 backdrop-blur-md px-2 py-0.5 rounded-md text-[9px] font-extrabold uppercase tracking-widest text-slate-900 shadow-lg">
+                            {asset.type || 'RWA ASSET'}
                         </div>
                     </div>
+
+                    <div className="absolute top-3 right-3 flex flex-col items-end gap-1.5">
+                        <div className="bg-slate-900 px-2 py-0.5 rounded-md text-white shadow-lg border border-slate-700/50 flex items-center gap-1">
+                            <span className="text-[10px] font-bold text-white">{roi}</span>
+                            <span className="text-[8px] font-bold text-slate-400 tracking-wider uppercase">PROJECTED ROI</span>
+                        </div>
+                        <div className="bg-white/90 backdrop-blur-md px-2 py-0.5 rounded-md text-[9px] font-bold text-slate-900 shadow-lg border border-white/20">
+                            {cagr} CAGR
+                        </div>
+                    </div>
+
+                    {/* Bottom Info on Cover */}
+                    <div className="absolute bottom-0 left-0 w-full p-5 text-white">
+                        <div className="flex items-center gap-1.5 mb-2">
+                            <img src={issuerLogo} alt={issuerName} className="w-5 h-5 rounded-full border border-white/30" />
+                            <span className="text-[10px] font-medium text-slate-200">{issuerName}</span>
+                        </div>
+                        <h3 className="text-xl font-bold leading-tight mb-1 font-display">{asset.name}</h3>
+                        <p className="text-xs text-slate-300 font-medium mb-4">{asset.symbol || 'AURA-TKN'}</p>
+
+                        {customAction ? (
+                            <div className="mt-auto pt-2">
+                                {customAction}
+                            </div>
+                        ) : (
+                            <button
+                                onClick={onInvest}
+                                disabled={isPreview}
+                                className={`inline-flex items-center gap-1.5 text-[10px] font-bold tracking-wide transition-colors ${isPreview ? 'text-slate-500 cursor-not-allowed' : 'text-primary hover:text-white cursor-pointer bg-transparent border-none'}`}
+                            >
+                                <span>{isPreview ? 'PREVIEW MODE' : 'INVEST NOW'}</span>
+                                {!isPreview && (
+                                    <svg className="w-3 h-3 animate-bounce-x" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                                    </svg>
+                                )}
+                            </button>
+                        )}
+                    </div>
                 </div>
 
-                <button
-                    onClick={onInvest}
-                    className="flex items-center justify-center gap-2"
-                >
-                    Invest Now <ArrowUpRight size={18} />
-                </button>
+                {/* 2. Hover State (Split View) */}
+                <div className="w-1/2 h-full flex">
+                    {/* Left side of the split (Retained Image Strip) */}
+                    <div className="w-[35%] h-full relative overflow-hidden">
+                        <img
+                            src={mockImage}
+                            alt={asset.name}
+                            className="w-full h-full object-cover scale-150"
+                        />
+                        <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-[2px]"></div>
+                    </div>
+
+                    {/* Right side of the split (Details Panel) */}
+                    <div className="w-[65%] h-full bg-white dark:bg-slate-900 p-4 flex flex-col justify-between">
+                        <div className="overflow-hidden">
+                            <h4 className="text-[14px] font-bold text-slate-900 dark:text-white leading-tight mb-2 line-clamp-2">{asset.name}</h4>
+                            <div className="flex flex-wrap gap-1 mb-4">
+                                <span className="px-1.5 py-0.5 bg-slate-50 dark:bg-slate-800 rounded text-[9px] font-bold text-slate-500 dark:text-slate-400 border border-slate-100 dark:border-slate-700">{strategy}</span>
+                                <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold border ${statusColor}`}>{statusText}</span>
+                            </div>
+
+                            {/* Details List */}
+                            <div className="space-y-2.5">
+                                <div className="flex justify-between items-center border-b border-slate-50 dark:border-slate-800 pb-1.5">
+                                    <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Asset Valuation</span>
+                                    <span className="text-[12px] font-bold text-slate-900 dark:text-white">${Number(asset.valuation || asset.nav || 0).toLocaleString()}</span>
+                                </div>
+                                <div className="flex justify-between items-center border-b border-slate-50 dark:border-slate-800 pb-1.5">
+                                    <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">AI Confidence</span>
+                                    <div className="flex items-center gap-1.5">
+                                        <BrainCircuit size={12} className="text-primary" />
+                                        <span className="text-[12px] font-bold text-primary text-right">{aiConfidence}%</span>
+                                    </div>
+                                </div>
+                                <div className="flex justify-between items-center border-b border-slate-50 dark:border-slate-800 pb-1.5">
+                                    <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Asset Type</span>
+                                    <span className="text-[12px] font-bold text-slate-900 dark:text-white">{asset.type}</span>
+                                </div>
+
+                                {asset.location && (
+                                    <div className="flex justify-between items-center border-b border-slate-50 dark:border-slate-800 pb-1.5">
+                                        <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Location</span>
+                                        <span className="text-[12px] font-bold text-slate-900 dark:text-white truncate max-w-[100px] text-right">{asset.location}</span>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {customAction ? (
+                            <div className="mt-2 text-center w-full">
+                                {customAction}
+                            </div>
+                        ) : (
+                            <button
+                                onClick={onInvest}
+                                disabled={isPreview}
+                                className={`inline-flex items-center gap-2 px-4 py-2.5 font-black uppercase text-[10px] tracking-widest rounded-xl transition-all duration-300 w-full justify-center border-none ${isPreview ? 'bg-slate-200 text-slate-500 cursor-not-allowed' : 'bg-primary hover:bg-emerald-600 text-white shadow-lg shadow-primary/20 cursor-pointer'}`}
+                            >
+                                <div className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center -ml-1">
+                                    <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" />
+                                    </svg>
+                                </div>
+                                <span>{isPreview ? 'PREVIEW MODE' : 'VIEW DETAILS & INVEST'}</span>
+                            </button>
+                        )}
+                    </div>
+                </div>
             </div>
-        </div>
+        </motion.div>
     );
 };
 
