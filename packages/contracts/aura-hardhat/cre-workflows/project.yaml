@@ -1,0 +1,15 @@
+local-simulation:
+  rpcs:
+    - chain-name: ethereum-testnet-sepolia
+      url: https://ethereum-sepolia-rpc.publicnode.com
+    - chain-name: avalanche-testnet-fuji
+      url: https://avalanche-fuji-c-chain-rpc.publicnode.com
+
+staging:
+  cre-cli:
+    don-family: "zone-a"
+  rpcs:
+    - chain-name: ethereum-testnet-sepolia
+      url: https://ethereum-sepolia-rpc.publicnode.com
+    - chain-name: avalanche-testnet-fuji
+      url: https://avalanche-fuji-c-chain-rpc.publicnode.com

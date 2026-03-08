@@ -6,6 +6,7 @@
     "node": "20.x"
   },
   "scripts": {
+    "dev": "node scripts/run-cre-dev.js",
     "compile": "hardhat compile",
     "test": "hardhat test",
     "test:unit": "hardhat test test/unit/**/*.spec.ts",

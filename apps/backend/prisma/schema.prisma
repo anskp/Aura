@@ -7,137 +7,114 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Asset {
-  id               Int          @id @default(autoincrement())
-  name             String
-  symbol           String
-  description      String?      @db.Text
-  type             AssetType
-  valuation        Decimal
-  aiPricing        Decimal?     // AI Recommended Pricing
-  aiReasoning      String?      @db.Text
-  nav              Decimal?     // Current NAV
-  por              Decimal?     // Proof of Reserve value
-  tokenAddress     String?      // Deployed ERC3643 address
-  location         String?
-  status           AssetStatus  @default(PENDING)
-  companyName      String?
-  companyRegNumber String?
-  deploymentTxHash String?
-  owner            user         @relation(fields: [ownerId], references: [id])
-  ownerId          Int
-  token            Token?
-  pool             Pool?
-  transactions     Transaction[]
-  createdAt        DateTime     @default(now())
-  updatedAt        DateTime     @updatedAt
-}
-
-model Token {
-  id               Int      @id @default(autoincrement())
-  name             String
-  symbol           String
-  address          String   @unique
-  assetId          Int      @unique
-  asset            Asset    @relation(fields: [assetId], references: [id])
-  navOracleAddress String?  
-  porAddress       String?  
-  deploymentTxHash String?
-  createdAt        DateTime @default(now())
-}
-
-model Pool {
-  id                Int      @id @default(autoincrement())
-  address           String   @unique
-  assetId           Int      @unique
-  asset             Asset    @relation(fields: [assetId], references: [id])
-  stablecoinAddress String   
-  totalLiquidity    Decimal  @default(0)
-  totalShares       Decimal  @default(0)
-  deploymentTxHash  String?
-  status            PoolStatus @default(ACTIVE)
-  investments       Investment[]
-  createdAt         DateTime @default(now())
-}
-
-model Transaction {
-  id           Int      @id @default(autoincrement())
-  assetId      Int?
-  asset        Asset?   @relation(fields: [assetId], references: [id])
-  userAddress  String
-  actionType   TransactionAction
-  txHash       String   @unique
-  status       TransactionStatus @default(PENDING)
-  createdAt    DateTime @default(now())
-}
-
-model Investment {
-  id              Int      @id @default(autoincrement())
-  poolId          Int
-  pool            Pool     @relation(fields: [poolId], references: [id])
-  investorAddress String
-  amountPaid      Decimal  // USDC
-  sharesReceived  Decimal  // AURAPS
-  txHash          String   @unique
-  createdAt       DateTime @default(now())
-}
-
-enum TransactionAction {
-  DEPLOY_TOKEN
-  MINT_RWA
-  DEPLOY_POOL
-  DEPOSIT_COLLATERAL
-  INVEST
-  REDEEM
-  SYNC_ORACLE
-}
-
-enum TransactionStatus {
-  PENDING
-  SUCCESS
-  FAILED
-}
-
 model user {
-  id        Int       @id @default(autoincrement())
-  email     String    @unique(map: "User_email_key")
-  password  String
-  role      user_role @default(USER)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-
-  // KYC Fields
+  id                 Int       @id @default(autoincrement())
+  email              String    @unique(map: "User_email_key")
+  password           String
+  role               user_role @default(USER)
   kycStatus          KycStatus @default(NOT_STARTED)
-  sumsubApplicantId  String?   @unique
-  kycReviewedAt      DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  kycLevel           String?
   kycRejectionReason String?
-  kycLevel            String?
-  kycSnapshot         Json?
-  
-  // Relations
-  wallets wallet[]
-  assets  Asset[]
+  kycReviewedAt      DateTime?
+  kycSnapshot        Json?
+  sumsubApplicantId  String?   @unique
+  asset              asset[]
+  wallets            wallet[]
 }
 
-// Troubleshooting - Prisma Errors
-//
-// After resolving the merge conflicts, I encountered errors where Prisma was missing fields or having naming mismatches. I resolved these with the following steps:
-//
-// 1. Regenerated Prisma Client: Ran `npx prisma generate` in `apps/backend` to update the client types with the new schema.
-// 2. Synced Database: Ran `npx prisma db push --force-reset` to align the database structure with the `schema.prisma` file (renaming models and adding fields).
-// 3. Seeded Data: Ran `node prisma/seed/admin.js` to restore the admin user after the database reset.
-//
-// The application is now up to date and functional.
 model wallet {
   id        Int      @id @default(autoincrement())
   address   String
   chain     String
   userId    Int
   createdAt DateTime @default(now())
-
-  user user @relation(fields: [userId], references: [id])
+  user      user     @relation(fields: [userId], references: [id])
 
   @@unique([address, chain])
+  @@index([userId], map: "wallet_userId_fkey")
+}
+
+model asset {
+  id               Int           @id @default(autoincrement())
+  name             String
+  symbol           String
+  description      String?       @db.Text
+  type             asset_type
+  valuation        Decimal
+  aiPricing        Decimal?
+  aiReasoning      String?       @db.Text
+  nav              Decimal?
+  por              Decimal?
+  tokenAddress     String?
+  location         String?
+  status           asset_status  @default(PENDING)
+  companyName      String?
+  companyRegNumber String?
+  deploymentTxHash String?
+  ownerId          Int
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime
+  user             user          @relation(fields: [ownerId], references: [id], map: "Asset_ownerId_fkey")
+  pool             pool?
+  token            token?
+  transaction      transaction[]
+
+  @@index([ownerId], map: "Asset_ownerId_fkey")
+}
+
+model investment {
+  id              Int      @id @default(autoincrement())
+  poolId          Int
+  investorAddress String
+  amountPaid      Decimal
+  sharesReceived  Decimal
+  txHash          String   @unique(map: "Investment_txHash_key")
+  createdAt       DateTime @default(now())
+  pool            pool     @relation(fields: [poolId], references: [id], map: "Investment_poolId_fkey")
+
+  @@index([poolId], map: "Investment_poolId_fkey")
+}
+
+model pool {
+  id                Int          @id @default(autoincrement())
+  address           String       @unique(map: "Pool_address_key")
+  assetId           Int          @unique(map: "Pool_assetId_key")
+  stablecoinAddress String
+  totalLiquidity    Decimal      @default(0.000000000000000000000000000000)
+  totalShares       Decimal      @default(0.000000000000000000000000000000)
+  deploymentTxHash  String?
+  status            pool_status  @default(ACTIVE)
+  createdAt         DateTime     @default(now())
+  investment        investment[]
+  asset             asset        @relation(fields: [assetId], references: [id], map: "Pool_assetId_fkey")
+}
+
+model token {
+  id               Int      @id @default(autoincrement())
+  name             String
+  symbol           String
+  address          String   @unique(map: "Token_address_key")
+  assetId          Int      @unique(map: "Token_assetId_key")
+  navOracleAddress String?
+  porAddress       String?
+  deploymentTxHash String?
+  createdAt        DateTime @default(now())
+  asset            asset    @relation(fields: [assetId], references: [id], map: "Token_assetId_fkey")
+}
+
+model transaction {
+  id          Int                    @id @default(autoincrement())
+  assetId     Int?
+  userAddress String
+  actionType  transaction_actionType
+  txHash      String                 @unique(map: "Transaction_txHash_key")
+  status      transaction_status     @default(PENDING)
+  createdAt   DateTime               @default(now())
+  asset       asset?                 @relation(fields: [assetId], references: [id], map: "Transaction_assetId_fkey")
+
+  @@index([assetId], map: "Transaction_assetId_fkey")
 }
 
 enum user_role {
@@ -153,7 +130,17 @@ enum KycStatus {
   REJECTED
 }
 
-enum AssetType {
+enum transaction_actionType {
+  DEPLOY_TOKEN
+  MINT_RWA
+  DEPLOY_POOL
+  DEPOSIT_COLLATERAL
+  INVEST
+  REDEEM
+  SYNC_ORACLE
+}
+
+enum asset_type {
   ART
   METAL
   REAL_ESTATE
@@ -161,16 +148,21 @@ enum AssetType {
   OTHER
 }
 
-enum AssetStatus {
+enum transaction_status {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+enum pool_status {
+  ACTIVE
+  CLOSED
+}
+
+enum asset_status {
   PENDING
   APPROVED
   TOKENIZED
   LISTED
   ONBOARDED
 }
-
-enum PoolStatus {
-  ACTIVE
-  CLOSED
-}
-
