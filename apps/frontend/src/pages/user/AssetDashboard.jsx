@@ -5,6 +5,7 @@ import { Plus, Box, Calendar, MapPin, Tag, Activity, Rocket, List, Loader2 } fro
 import { BlockchainService } from '../../services/blockchain.service';
 import { useAuth } from '../../context/AuthContext';
 import { ethers } from 'ethers';
+import AssetCard from '../../components/marketplace/AssetCard';
 
 const AssetDashboard = () => {
     const [assets, setAssets] = useState([]);
@@ -30,8 +31,6 @@ const AssetDashboard = () => {
 
     const handleDeployToken = async (asset) => {
         console.log(`[User Action] Initiating tokenization for asset: ${asset.name}`);
-
-        // Defensive check for user wallets
         const userWallet = user.wallets?.[0]?.address;
         if (!userWallet) {
             alert("No wallet connected. Please connect your wallet in the settings or dashboard before tokenizing.");
@@ -41,20 +40,13 @@ const AssetDashboard = () => {
         setDeployingId(asset.id);
         try {
             const complianceAddr = import.meta.env.VITE_COMPLIANCE_REGISTRY_ADDRESS || "0x0000000000000000000000000000000000000000";
-
-            // 1. Deploy RWA Stack
             const result = await BlockchainService.deployRwaStack(
                 asset.name,
                 asset.symbol,
-                userWallet, // User becomes the Admin/Issuer
+                userWallet,
                 complianceAddr
             );
 
-            // 2. We NO LONGER mint upfront. 
-            // Assets are born with 0 supply, minted only when someone buys.
-            console.log(`[Action] Token stack deployed. Supply remains 0 until first investment.`);
-
-            console.log(`[API] Finalizing tokenization in database for asset ${asset.id}...`);
             await api.post(`/assets/finalize-tokenization/${asset.id}`, {
                 address: result.tokenAddress,
                 symbol: asset.symbol,
@@ -64,7 +56,6 @@ const AssetDashboard = () => {
                 navOracle: result.navOracleAddress,
                 porContract: result.porAddress
             });
-            console.log(`[User Action] Tokenization complete for ${asset.name}`);
 
             fetchAssets();
             alert('Tokenized successfully! This asset is now ready to be listed in the Marketplace.');
@@ -94,14 +85,10 @@ const AssetDashboard = () => {
                 throw new Error("Shared infrastructure (Stablecoin or Oracles) not configured in environment.");
             }
 
-            let poolAddress = asset.pool?.address || asset.address; // Correctly resolve pool address
-
-            // Force Sync: Check if the pool contract actually exists on this network
+            let poolAddress = asset.pool?.address || asset.address;
             const isPoolValid = await BlockchainService.isContract(poolAddress);
-            console.log(`[Blockchain] Pool address ${poolAddress} exists: ${isPoolValid}`);
 
             if (asset.status !== 'LISTED' || !poolAddress || !isPoolValid) {
-                console.log(`[Action] ${!isPoolValid ? 'Detected dead Pool address. Force re-deploying...' : 'Deploying new LiquidityPool...'}`);
                 poolAddress = await BlockchainService.deployPool(
                     stablecoinAddress,
                     asset.tokenAddress,
@@ -117,8 +104,6 @@ const AssetDashboard = () => {
             const poolId = ethers.keccak256(ethers.toUtf8Bytes(asset.name));
             const assetIdBytes32 = ethers.zeroPadValue(ethers.toBeHex(asset.id), 32);
 
-            // 2. Bootstrap ORACLE Data (Crucial for avoiding StaleNav error)
-            console.log(`[Action] Bootstrapping Oracle data for ${asset.name}...`);
             const navOracleAbi = ["function setNav(bytes32 poolId, uint256 nav, uint256 timestamp, bytes32 reportId) external"];
             const porOracleAbi = ["function setReserve(bytes32 assetId, uint256 reserve, uint256 timestamp, bytes32 reportId) external"];
 
@@ -128,17 +113,13 @@ const AssetDashboard = () => {
             const now = Math.floor(Date.now() / 1000);
             const valuationWei = ethers.parseEther(asset.valuation.toString());
 
-            console.log(`[Blockchain] Setting initial NAV: $${asset.valuation}`);
             const navTx = await navOracle.setNav(poolId, valuationWei, now, ethers.ZeroHash);
             await navTx.wait();
 
-            console.log(`[Blockchain] Setting initial Proof of Reserve: $${asset.valuation}`);
             const porTx = await porOracle.setReserve(assetIdBytes32, valuationWei, now, ethers.ZeroHash);
             await porTx.wait();
 
             if (asset.status !== 'LISTED') {
-                // 3. Grant ISSUER_ROLE to the Pool
-                console.log(`[Action] Granting ISSUER_ROLE to the Pool...`);
                 const tokenAbi = [
                     "function grantRole(bytes32 role, address account) external",
                     "function ISSUER_ROLE() view returns (bytes32)"
@@ -149,31 +130,20 @@ const AssetDashboard = () => {
                 await tx.wait();
             }
 
-            // 4. Ensure user has some Mock USDC for testing
             try {
-                const usdcAbi = [
-                    "function mint(address to, uint256 amount) external",
-                    "function balanceOf(address account) view returns (uint256)"
-                ];
+                const usdcAbi = ["function mint(address to, uint256 amount) external", "function balanceOf(address account) view returns (uint256)"];
                 const usdc = new ethers.Contract(stablecoinAddress, usdcAbi, signer);
                 const balance = await usdc.balanceOf(userWallet);
                 if (balance === 0n) {
-                    console.log(`[Action] Minting 10,000 Mock USDC for testing...`);
                     const mintTx = await usdc.mint(userWallet, ethers.parseUnits("10000", 6));
                     await mintTx.wait();
                 }
             } catch (e) {
-                console.log("[Notice] Stablecoin mint skipped - likely not a mock contract or already has balance.");
+                console.log("[Notice] Stablecoin mint skipped.");
             }
 
-            // 5. Finalize or Sync in Backend
-            console.log(`[API] ${asset.status === 'LISTED' ? 'Syncing' : 'Finalizing'} marketplace listing for asset ${asset.id}...`);
-            await api.post(`/assets/finalize-listing/${asset.id}`, {
-                address: poolAddress,
-                stablecoinAddress: stablecoinAddress
-            });
+            await api.post(`/assets/finalize-listing/${asset.id}`, { address: poolAddress, stablecoinAddress });
 
-            console.log(`[User Action] Asset ${asset.name} is now ${asset.status === 'LISTED' ? 'Synced' : 'LIVE'} on marketplace`);
             fetchAssets();
             alert(asset.status === 'LISTED' ? 'Oracle data synced successfully!' : 'Listed in Marketplace successfully!');
         } catch (err) {
@@ -185,112 +155,103 @@ const AssetDashboard = () => {
     };
 
     return (
-        <div className="container">
-            <header className="flex justify-between items-center mb-8" style={{ marginBottom: '2rem' }}>
+        <div className="space-y-6 animate-in fade-in duration-500">
+            <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-6">
                 <div>
-                    <h1>My Assets</h1>
-                    <p style={{ color: 'var(--text-muted)' }}>Manage your real-world assets and company entities.</p>
+                    <h3 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white bg-none mb-1">My Assets</h3>
+                    <p className="text-slate-500 text-sm">Manage your real-world assets and company entities.</p>
                 </div>
-                <button onClick={() => navigate('/assets/onboard')} style={{ width: 'auto', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <button
+                    onClick={() => navigate('/assets/onboard')}
+                    className="btn-primary flex items-center gap-2 border border-primary shadow-none"
+                >
                     <Plus size={18} /> Onboard New Asset
                 </button>
             </header>
 
             {loading ? (
-                <div style={{ textAlign: 'center', padding: '3rem' }}>Loading assets...</div>
+                <div className="flex justify-center items-center h-64">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                    <p className="ml-4 text-slate-500 font-medium">Loading assets...</p>
+                </div>
             ) : (
-                <div className="grid grid-cols-3 gap-6">
-                    {assets.map(asset => (
-                        <div key={asset.id} className="glass-card" style={{ padding: '1.5rem', transition: 'transform 0.2s' }}>
-                            <div className="flex justify-between items-start mb-4">
-                                <div style={{ background: 'var(--glass)', padding: '0.75rem', borderRadius: '12px', color: 'var(--accent)' }}>
-                                    <Box size={24} />
-                                </div>
-                                <span style={{
-                                    padding: '0.25rem 0.75rem',
-                                    borderRadius: '999px',
-                                    background: ['APPROVED', 'TOKENIZED', 'LISTED'].includes(asset.status) ? 'rgba(16, 185, 129, 0.1)' : 'rgba(245, 158, 11, 0.1)',
-                                    color: ['APPROVED', 'TOKENIZED', 'LISTED'].includes(asset.status) ? '#10b981' : '#f59e0b',
-                                    fontSize: '0.75rem',
-                                    fontWeight: 'bold'
-                                }}>
-                                    {asset.status}
-                                </span>
-                            </div>
-
-                            <h3 style={{ marginBottom: '0.25rem' }}>{asset.name}</h3>
-                            <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginBottom: '1.5rem' }}>{asset.symbol}</p>
-
-                            <div className="space-y-3" style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>
-                                <div className="flex items-center gap-2 mb-2">
-                                    <Tag size={14} /> <span>{asset.type}</span>
-                                </div>
-                                {asset.location && (
-                                    <div className="flex items-center gap-2 mb-2">
-                                        <MapPin size={14} /> <span>{asset.location}</span>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {assets.map(asset => {
+                        let customAction;
+                        if (asset.status === 'APPROVED') {
+                            customAction = (
+                                <button
+                                    className="w-full py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 hover:bg-primary dark:hover:bg-primary hover:text-white dark:hover:text-white transition-all shadow-none border-none cursor-pointer"
+                                    onClick={(e) => { e.stopPropagation(); handleDeployToken(asset); }}
+                                    disabled={deployingId === asset.id}
+                                >
+                                    {deployingId === asset.id ? <Loader2 className="animate-spin" size={14} /> : <Rocket size={14} />}
+                                    Deploy RWA Stack
+                                </button>
+                            );
+                        } else if (asset.status === 'TOKENIZED') {
+                            customAction = (
+                                <button
+                                    className="w-full py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 bg-emerald-500 text-white hover:bg-emerald-600 transition-all shadow-none border-none cursor-pointer"
+                                    onClick={(e) => { e.stopPropagation(); handleListInPool(asset); }}
+                                    disabled={deployingId === asset.id}
+                                >
+                                    {deployingId === asset.id ? <Loader2 className="animate-spin" size={14} /> : <List size={14} />}
+                                    List in Marketplace
+                                </button>
+                            );
+                        } else if (asset.status === 'LISTED') {
+                            customAction = (
+                                <div className="space-y-2">
+                                    <div className="text-center text-emerald-500 font-bold flex items-center justify-center gap-2 text-xs">
+                                        <Box size={14} /> Active in Marketplace
                                     </div>
-                                )}
-                                <div className="flex items-center gap-2 mb-2">
-                                    <Activity size={14} /> <span>Valuation: ${Number(asset.valuation).toLocaleString()}</span>
-                                </div>
-                                {asset.companyName && (
-                                    <div className="flex items-center gap-2 mb-2">
-                                        <Calendar size={14} /> <span>Entity: {asset.companyName}</span>
-                                    </div>
-                                )}
-                            </div>
-
-                            <div style={{ marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid var(--card-border)' }}>
-                                {asset.status === 'APPROVED' && (
                                     <button
-                                        className="accent flex items-center justify-center gap-2"
-                                        style={{ width: '100%' }}
-                                        onClick={() => handleDeployToken(asset)}
+                                        className="w-full py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-2 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all border border-slate-200 dark:border-slate-700 cursor-pointer"
+                                        onClick={(e) => { e.stopPropagation(); handleListInPool(asset); }}
                                         disabled={deployingId === asset.id}
                                     >
-                                        {deployingId === asset.id ? <Loader2 className="animate-spin" size={18} /> : <Rocket size={18} />}
-                                        Deploy RWA Stack
+                                        <Activity size={14} /> Sync On-Chain Data
                                     </button>
-                                )}
-                                {asset.status === 'TOKENIZED' && (
-                                    <button
-                                        className="success flex items-center justify-center gap-2"
-                                        style={{ width: '100%', background: '#10b981' }}
-                                        onClick={() => handleListInPool(asset)}
-                                        disabled={deployingId === asset.id}
-                                    >
-                                        {deployingId === asset.id ? <Loader2 className="animate-spin" size={18} /> : <List size={18} />}
-                                        List in Marketplace
-                                    </button>
-                                )}
-                                {asset.status === 'LISTED' && (
-                                    <div className="space-y-2">
-                                        <div className="text-center text-green-400 font-bold flex items-center justify-center gap-2 mb-2">
-                                            <Box size={16} /> Active in Marketplace
-                                        </div>
-                                        <button
-                                            className="small secondary flex items-center justify-center gap-2"
-                                            style={{ width: '100%', fontSize: '0.75rem', opacity: 0.8 }}
-                                            onClick={() => handleListInPool(asset)}
-                                            disabled={deployingId === asset.id}
-                                        >
-                                            <Activity size={14} /> Sync On-Chain Data
-                                        </button>
-                                    </div>
-                                )}
-                                {asset.status === 'PENDING' && (
-                                    <p className="text-center text-xs text-gray-400 italic">Awaiting AI Valuation & Admin Approval</p>
-                                )}
-                            </div>
-                        </div>
-                    ))}
+                                </div>
+                            );
+                        } else {
+                            customAction = (
+                                <p className="text-center text-xs text-slate-400 italic m-0 bg-slate-50 dark:bg-slate-800 p-2 rounded-lg">Awaiting AI Valuation & Admin</p>
+                            );
+                        }
+
+                        // Provide dummy details for mock if missing
+                        const enrichedAsset = {
+                            ...asset,
+                            valuation: asset.valuation || 0,
+                            image: asset.image || 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=800&q=80',
+                            roi: "15%",
+                            cagr: "18%",
+                            investmentStrategy: "Capital Growth",
+                        };
+
+                        return (
+                            <AssetCard
+                                key={asset.id}
+                                asset={enrichedAsset}
+                                isPreview={true}
+                                customAction={customAction}
+                            />
+                        );
+                    })}
 
                     {assets.length === 0 && (
-                        <div className="glass-card col-span-3" style={{ padding: '4rem', textAlign: 'center' }}>
-                            <Box size={48} style={{ margin: '0 auto 1rem', color: 'var(--text-muted)' }} />
-                            <h3>No assets onboarded yet</h3>
-                            <p style={{ color: 'var(--text-muted)', marginBottom: '1.5rem' }}>Start by onboarding your first real-world asset.</p>
-                            <button onClick={() => navigate('/assets/onboard')} style={{ width: 'auto' }}>
+                        <div className="col-span-full bg-white dark:bg-background-dark border border-slate-200 dark:border-slate-800 rounded-2xl p-12 text-center flex flex-col items-center justify-center min-h-[400px]">
+                            <div className="w-20 h-20 bg-slate-50 dark:bg-slate-800 rounded-full flex items-center justify-center text-slate-300 dark:text-slate-600 mb-6">
+                                <Box size={40} />
+                            </div>
+                            <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2 bg-none">No assets onboarded yet</h3>
+                            <p className="text-slate-500 mb-8 max-w-sm">Start tokenizing your real-world assets today by submitting your first asset request.</p>
+                            <button
+                                onClick={() => navigate('/assets/onboard')}
+                                className="btn-primary px-8 border shadow-none"
+                            >
                                 Onboard Now
                             </button>
                         </div>

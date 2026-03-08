@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import api from '../../services/api';
-import { UserCheck, UserX, AlertCircle, CheckCircle, Clock, Package } from 'lucide-react';
+import { UserCheck, UserX, AlertCircle, CheckCircle, Clock, Package, Award } from 'lucide-react';
 
 const AdminDashboard = () => {
     const [users, setUsers] = useState([]);
@@ -34,7 +34,6 @@ const AdminDashboard = () => {
     const handleApproveAsset = async (assetId) => {
         try {
             await api.post(`/assets/admin/approve/${assetId}`);
-            // Refresh assets
             const assetsRes = await api.get('/assets/admin/all');
             setAssets(assetsRes.data);
         } catch (err) {
@@ -43,89 +42,92 @@ const AdminDashboard = () => {
         }
     };
 
-    if (loading) return <div className="container"><h2>Loading Admin Panel...</h2></div>;
+    if (loading) return (
+        <div className="flex justify-center items-center h-64">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            <p className="ml-4 text-slate-500 font-medium">Loading Admin Panel...</p>
+        </div>
+    );
 
     return (
-        <div className="container">
-            <div className="flex justify-between items-center mb-6">
-                <h1 style={{ margin: 0 }}>Admin Governance</h1>
-                {error && <div style={{ color: '#ef4444', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <AlertCircle size={20} /> {error}
-                </div>}
+        <div className="space-y-8 animate-in fade-in duration-500">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-6">
+                <div>
+                    <h3 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white bg-none mb-1">Admin Governance</h3>
+                    <p className="text-slate-500 text-sm">Review asset requests and compliance status</p>
+                </div>
+                {error && (
+                    <div className="text-red-500 bg-red-50 dark:bg-red-900/20 px-4 py-2 rounded-lg border border-red-200 dark:border-red-800 flex items-center gap-2 text-sm font-medium">
+                        <AlertCircle size={16} /> {error}
+                    </div>
+                )}
             </div>
 
             {/* Asset Onboarding Requests */}
-            <section className="mb-10">
-                <div className="flex items-center gap-2 mb-4">
-                    <Package className="text-accent" size={24} />
-                    <h2 style={{ margin: 0 }}>Asset Onboarding Requests</h2>
+            <section className="bg-white dark:bg-background-dark border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm">
+                <div className="p-6 border-b border-slate-200 dark:border-slate-800 flex items-center gap-3">
+                    <div className="p-2 bg-primary/10 text-primary rounded-lg"><Package size={20} /></div>
+                    <h2 className="text-lg font-bold text-slate-900 dark:text-white m-0 bg-none">Asset Onboarding Requests</h2>
                 </div>
-                <div className="glass-card" style={{ padding: '0', overflow: 'hidden' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
                         <thead>
-                            <tr style={{ textAlign: 'left', background: 'rgba(255,255,255,0.03)' }}>
-                                <th style={{ padding: '1rem' }}>Asset</th>
-                                <th style={{ padding: '1rem' }}>Details</th>
-                                <th style={{ padding: '1rem' }}>Owner</th>
-                                <th style={{ padding: '1rem' }}>Valuations</th>
-                                <th style={{ padding: '1rem' }}>Status</th>
-                                <th style={{ padding: '1rem', textAlign: 'right' }}>Actions</th>
+                            <tr className="bg-slate-50 dark:bg-slate-900/50 text-xs uppercase tracking-wider text-slate-500 dark:text-slate-400 font-bold border-b border-slate-200 dark:border-slate-800">
+                                <th className="p-4 pl-6">Asset</th>
+                                <th className="p-4">Details</th>
+                                <th className="p-4">Owner</th>
+                                <th className="p-4">Valuations</th>
+                                <th className="p-4">Status</th>
+                                <th className="p-4 pr-6 text-right">Actions</th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
                             {assets.length === 0 ? (
-                                <tr><td colSpan="5" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>No asset requests found</td></tr>
+                                <tr>
+                                    <td colSpan="6" className="p-8 text-center text-slate-500">No asset requests found</td>
+                                </tr>
                             ) : (
                                 assets.map(asset => (
-                                    <tr key={asset.id} style={{ borderTop: '1px solid var(--card-border)' }}>
-                                        <td style={{ padding: '1rem' }}>
-                                            <div style={{ fontWeight: 'bold' }}>{asset.name}</div>
-                                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{asset.symbol} • {asset.type}</div>
+                                    <tr key={asset.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+                                        <td className="p-4 pl-6">
+                                            <div className="font-bold text-slate-900 dark:text-white text-sm">{asset.name}</div>
+                                            <div className="text-xs text-slate-500 mt-1 font-medium">{asset.symbol} • {asset.type}</div>
                                         </td>
-                                        <td style={{ padding: '1rem' }}>
-                                            <div style={{ maxWidth: '200px', fontSize: '0.8125rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                        <td className="p-4">
+                                            <div className="max-w-[200px] text-sm text-slate-700 dark:text-slate-300 truncate">
                                                 {asset.description || "N/A"}
                                             </div>
-                                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{asset.location || "Global"}</div>
+                                            <div className="text-xs text-slate-500 mt-1">{asset.location || "Global"}</div>
                                         </td>
-                                        <td style={{ padding: '1rem' }}>{asset.owner?.email || 'Unknown'}</td>
-                                        <td style={{ padding: '1rem' }}>
-                                            <div style={{ fontSize: '0.875rem' }}>User: <span style={{ fontWeight: 'bold' }}>${asset.valuation.toLocaleString()}</span></div>
-                                            <div style={{ fontSize: '0.875rem', color: '#60a5fa' }}>AI: <span style={{ fontWeight: 'bold' }}>${asset.aiPricing ? asset.aiPricing.toLocaleString() : 'N/A'}</span></div>
+                                        <td className="p-4 text-sm text-slate-700 dark:text-slate-300">{asset.owner?.email || 'Unknown'}</td>
+                                        <td className="p-4">
+                                            <div className="text-xs text-slate-500 mb-1">User: <span className="font-bold text-slate-900 dark:text-white">${asset.valuation.toLocaleString()}</span></div>
+                                            <div className="text-xs text-blue-500">AI: <span className="font-bold">${asset.aiPricing ? asset.aiPricing.toLocaleString() : 'N/A'}</span></div>
                                         </td>
-                                        <td style={{ padding: '1rem' }}>
-                                            <span style={{
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                gap: '0.4rem',
-                                                padding: '0.25rem 0.75rem',
-                                                borderRadius: '999px',
-                                                fontSize: '0.75rem',
-                                                width: 'fit-content',
-                                                background: ['APPROVED', 'TOKENIZED', 'LISTED'].includes(asset.status) ? 'rgba(16, 185, 129, 0.1)' : 'rgba(245, 158, 11, 0.1)',
-                                                color: ['APPROVED', 'TOKENIZED', 'LISTED'].includes(asset.status) ? '#10b981' : '#f59e0b'
-                                            }}>
-                                                {['APPROVED', 'TOKENIZED', 'LISTED'].includes(asset.status) ? <CheckCircle size={12} /> : <Clock size={12} />}
+                                        <td className="p-4">
+                                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wide uppercase shadow-none border ${['APPROVED', 'TOKENIZED', 'LISTED'].includes(asset.status)
+                                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800'
+                                                : 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800'
+                                                }`}>
+                                                {['APPROVED', 'TOKENIZED', 'LISTED'].includes(asset.status) ? <CheckCircle size={10} strokeWidth={3} /> : <Clock size={10} strokeWidth={3} />}
                                                 {asset.status}
                                             </span>
                                         </td>
-                                        <td style={{ padding: '1rem', textAlign: 'right' }}>
+                                        <td className="p-4 pr-6 text-right">
                                             <div className="flex gap-2 justify-end">
                                                 <button
                                                     onClick={() => {
                                                         setSelectedAsset(asset);
                                                         setIsDetailModalOpen(true);
                                                     }}
-                                                    className="small secondary"
-                                                    style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem' }}
+                                                    className="px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg text-xs font-bold hover:bg-slate-50 dark:hover:bg-slate-700 transition"
                                                 >
-                                                    Full Info
+                                                    View
                                                 </button>
                                                 {asset.status === 'PENDING' && (
                                                     <button
                                                         onClick={() => handleApproveAsset(asset.id)}
-                                                        className="small"
-                                                        style={{ background: 'var(--accent)', padding: '0.4rem 0.8rem', fontSize: '0.75rem' }}
+                                                        className="px-3 py-1.5 bg-primary text-white rounded-lg text-xs font-bold hover:bg-primary/90 transition shadow-none border-none"
                                                     >
                                                         Approve
                                                     </button>
@@ -141,41 +143,40 @@ const AdminDashboard = () => {
             </section>
 
             {/* User List */}
-            <section>
-                <div className="flex items-center gap-2 mb-4">
-                    <UserCheck className="text-accent" size={24} />
-                    <h2 style={{ margin: 0 }}>Identity & Compliance</h2>
+            <section className="bg-white dark:bg-background-dark border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm">
+                <div className="p-6 border-b border-slate-200 dark:border-slate-800 flex items-center gap-3">
+                    <div className="p-2 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-lg"><UserCheck size={20} /></div>
+                    <h2 className="text-lg font-bold text-slate-900 dark:text-white m-0 bg-none">Identity & Compliance</h2>
                 </div>
-                <div className="glass-card" style={{ padding: '0', overflow: 'hidden' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
                         <thead>
-                            <tr style={{ textAlign: 'left', background: 'rgba(255,255,255,0.03)' }}>
-                                <th style={{ padding: '1rem' }}>User Email</th>
-                                <th style={{ padding: '1rem' }}>KYC Status</th>
-                                <th style={{ padding: '1rem' }}>Wallets</th>
-                                <th style={{ padding: '1rem' }}>Role</th>
+                            <tr className="bg-slate-50 dark:bg-slate-900/50 text-xs uppercase tracking-wider text-slate-500 dark:text-slate-400 font-bold border-b border-slate-200 dark:border-slate-800">
+                                <th className="p-4 pl-6">User Email</th>
+                                <th className="p-4">KYC Status</th>
+                                <th className="p-4">Wallets</th>
+                                <th className="p-4 pr-6">Role</th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
                             {users.map(user => (
-                                <tr key={user.id} style={{ borderTop: '1px solid var(--card-border)' }}>
-                                    <td style={{ padding: '1rem' }}>{user.email}</td>
-                                    <td style={{ padding: '1rem' }}>
-                                        <span style={{
-                                            padding: '0.25rem 0.75rem',
-                                            borderRadius: '999px',
-                                            fontSize: '0.75rem',
-                                            background: user.kycStatus === 'APPROVED' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
-                                            color: user.kycStatus === 'APPROVED' ? '#10b981' : '#ef4444'
-                                        }}>
+                                <tr key={user.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+                                    <td className="p-4 pl-6 font-medium text-sm text-slate-900 dark:text-white">{user.email}</td>
+                                    <td className="p-4">
+                                        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wide uppercase border ${user.kycStatus === 'APPROVED'
+                                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800'
+                                            : 'bg-red-50 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800'
+                                            }`}>
                                             {user.kycStatus}
                                         </span>
                                     </td>
-                                    <td style={{ padding: '1rem' }}>
+                                    <td className="p-4 text-sm text-slate-600 dark:text-slate-400">
                                         {user.wallets?.length || 0} Connected
                                     </td>
-                                    <td style={{ padding: '1rem' }}>
-                                        <span style={{ fontSize: '0.875rem', opacity: 0.8 }}>{user.role}</span>
+                                    <td className="p-4 pr-6">
+                                        <span className="px-2 py-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded text-xs font-bold uppercase tracking-wide">
+                                            {user.role}
+                                        </span>
                                     </td>
                                 </tr>
                             ))}
@@ -183,69 +184,71 @@ const AdminDashboard = () => {
                     </table>
                 </div>
             </section>
+
             {/* Asset Detail Modal */}
             {isDetailModalOpen && selectedAsset && (
-                <div style={{
-                    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-                    background: 'rgba(0,0,0,0.85)', zIndex: 1000,
-                    display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '1rem'
-                }}>
-                    <div className="glass-card" style={{ width: '100%', maxWidth: '600px', padding: '2rem', position: 'relative' }}>
-                        <button
-                            onClick={() => setIsDetailModalOpen(false)}
-                            style={{ position: 'absolute', top: '1rem', right: '1rem', background: 'none', border: 'none', color: 'var(--text-muted)' }}
-                        >
-                            Close
-                        </button>
+                <div className="fixed inset-0 bg-slate-900/60 dark:bg-black/80 backdrop-blur-sm z-50 flex justify-center items-center p-4">
+                    <div className="bg-white dark:bg-background-dark border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
 
-                        <h2 className="mb-2">{selectedAsset.name}</h2>
-                        <div className="flex items-center gap-2 mb-6" style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>
-                            <span style={{ padding: '0.2rem 0.5rem', background: 'var(--glass)', borderRadius: '4px' }}>{selectedAsset.symbol}</span>
-                            <span>•</span>
-                            <span>{selectedAsset.type}</span>
-                            <span>•</span>
-                            <span style={{ color: selectedAsset.status === 'ONBOARDED' ? 'var(--accent)' : '#f59e0b' }}>{selectedAsset.status}</span>
+                        <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
+                            <h2 className="text-xl font-bold text-slate-900 dark:text-white m-0 bg-none">{selectedAsset.name}</h2>
+                            <button
+                                onClick={() => setIsDetailModalOpen(false)}
+                                className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full transition-colors"
+                            >
+                                <AlertCircle className="rotate-45" size={20} />
+                            </button>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-6 mb-6">
-                            <div>
-                                <h4 style={{ color: 'var(--text-muted)', marginBottom: '0.25rem' }}>User Valuation</h4>
-                                <div style={{ fontSize: '1.25rem', fontWeight: 'bold' }}>${selectedAsset.valuation.toLocaleString()}</div>
+                        <div className="p-6 max-h-[70vh] overflow-y-auto">
+                            <div className="flex items-center gap-3 text-xs font-bold uppercase tracking-wider text-slate-500 mb-8">
+                                <span className="px-2.5 py-1 bg-slate-100 dark:bg-slate-800 rounded-md text-slate-700 dark:text-slate-300">{selectedAsset.symbol}</span>
+                                <span>•</span>
+                                <span>{selectedAsset.type}</span>
+                                <span>•</span>
+                                <span className={selectedAsset.status === 'ONBOARDED' ? 'text-primary' : 'text-amber-500'}>{selectedAsset.status}</span>
                             </div>
-                            <div>
-                                <h4 style={{ color: 'var(--text-muted)', marginBottom: '0.25rem' }}>AI Recommended</h4>
-                                <div style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#60a5fa' }}>
-                                    ${selectedAsset.aiPricing ? selectedAsset.aiPricing.toLocaleString() : 'N/A'}
+
+                            <div className="grid grid-cols-2 gap-4 mb-8">
+                                <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800">
+                                    <h4 className="text-xs font-bold text-slate-400 uppercase mb-1">User Valuation</h4>
+                                    <div className="text-xl font-bold text-slate-900 dark:text-white">${selectedAsset.valuation.toLocaleString()}</div>
+                                </div>
+                                <div className="p-4 bg-blue-50 dark:bg-blue-900/10 rounded-2xl border border-blue-100 dark:border-blue-900/30">
+                                    <h4 className="text-xs font-bold text-blue-400 uppercase mb-1">AI Recommended</h4>
+                                    <div className="text-xl font-bold text-blue-600 dark:text-blue-400">
+                                        ${selectedAsset.aiPricing ? selectedAsset.aiPricing.toLocaleString() : 'N/A'}
+                                    </div>
                                 </div>
                             </div>
-                        </div>
 
-                        <div className="mb-6">
-                            <h4 style={{ color: 'var(--text-muted)', marginBottom: '0.5rem' }}>Asset Description</h4>
-                            <p style={{ background: 'rgba(255,255,255,0.02)', padding: '1rem', borderRadius: '8px', fontSize: '0.9rem', lineHeight: '1.5' }}>
-                                {selectedAsset.description || "No description provided."}
-                            </p>
-                        </div>
-
-                        <div className="mb-6">
-                            <h4 style={{ color: 'var(--text-muted)', marginBottom: '0.25rem' }}>Location</h4>
-                            <div style={{ fontSize: '0.9rem' }}>{selectedAsset.location || "Global / Digital"}</div>
-                        </div>
-
-                        {selectedAsset.aiReasoning && (
-                            <div className="mb-6" style={{ background: 'rgba(96, 165, 250, 0.05)', padding: '1rem', borderRadius: '8px', borderLeft: '4px solid #60a5fa' }}>
-                                <h4 style={{ color: '#60a5fa', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                    <AlertCircle size={16} /> AI Valuation Insights
-                                </h4>
-                                <p style={{ fontSize: '0.85rem', lineHeight: '1.5', margin: 0 }}>
-                                    {selectedAsset.aiReasoning}
+                            <div className="mb-8">
+                                <h4 className="text-sm font-bold text-slate-900 dark:text-white mb-2">Asset Description</h4>
+                                <p className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl text-sm text-slate-600 dark:text-slate-400 leading-relaxed border border-slate-100 dark:border-slate-800">
+                                    {selectedAsset.description || "No description provided."}
                                 </p>
                             </div>
-                        )}
 
-                        <div className="flex justify-between items-center mt-8">
-                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                                Owner: <span style={{ color: 'var(--text-main)' }}>{selectedAsset.owner?.email}</span>
+                            <div className="mb-8 border-t border-slate-100 dark:border-slate-800 pt-6">
+                                <h4 className="text-sm font-bold text-slate-900 dark:text-white mb-1">Location</h4>
+                                <div className="text-sm text-slate-500">{selectedAsset.location || "Global / Digital"}</div>
+                            </div>
+
+                            {selectedAsset.aiReasoning && (
+                                <div className="mb-6 p-5 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-100 dark:border-blue-800">
+                                    <h4 className="text-blue-600 dark:text-blue-400 font-bold mb-2 flex items-center gap-2 text-sm">
+                                        <Award size={16} /> AI Valuation Insights
+                                    </h4>
+                                    <p className="text-sm text-slate-700 dark:text-blue-200/80 leading-relaxed m-0">
+                                        {selectedAsset.aiReasoning}
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="p-6 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 flex justify-between items-center">
+                            <div className="text-xs text-slate-500 font-medium">
+                                Requested by: <span className="text-slate-900 dark:text-white font-bold">{selectedAsset.owner?.email}</span>
                             </div>
                             {selectedAsset.status === 'PENDING' && (
                                 <button
@@ -253,7 +256,7 @@ const AdminDashboard = () => {
                                         handleApproveAsset(selectedAsset.id);
                                         setIsDetailModalOpen(false);
                                     }}
-                                    style={{ background: 'var(--accent)', width: 'auto', padding: '0.75rem 2rem' }}
+                                    className="btn-primary px-6 py-2 border shadow-none"
                                 >
                                     Approve Valuation
                                 </button>

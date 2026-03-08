@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
-import { ArrowLeft, Send, Building2, User } from 'lucide-react';
+import { ArrowLeft, Send, Building2, Server } from 'lucide-react';
 
 const AssetOnboardingPage = () => {
     const navigate = useNavigate();
@@ -40,37 +40,52 @@ const AssetOnboardingPage = () => {
         }
     };
 
+    const inputClasses = "w-full px-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary text-sm font-medium text-slate-900 dark:text-white placeholder-slate-400 transition-all shadow-sm";
+    const labelClasses = "block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2";
+
     return (
-        <div className="container" style={{ maxWidth: '800px' }}>
-            <button onClick={() => navigate('/assets')} className="secondary" style={{ width: 'auto', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        <div className="max-w-3xl mx-auto space-y-6 animate-in fade-in duration-500 pb-12">
+            <button
+                onClick={() => navigate('/assets')}
+                className="btn-secondary flex items-center gap-2 border shadow-none"
+            >
                 <ArrowLeft size={18} /> Back to Assets
             </button>
 
-            <div className="glass-card" style={{ padding: '2rem' }}>
-                <h1 style={{ marginBottom: '0.5rem' }}>Onboard New Asset</h1>
-                <p style={{ color: 'var(--text-muted)', marginBottom: '2rem' }}>Provide the details for your real-world asset (RWA).</p>
+            <div className="bg-white dark:bg-background-dark border border-slate-200 dark:border-slate-800 rounded-2xl p-8 shadow-sm">
+                <div className="mb-8">
+                    <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white mb-2">Onboard New Asset</h1>
+                    <p className="text-slate-500 text-sm font-medium">Provide the details for your real-world asset (RWA).</p>
+                </div>
 
-                <form onSubmit={handleSubmit}>
-                    <div className="grid grid-cols-2 gap-6 mb-6">
+                <form onSubmit={handleSubmit} className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
-                            <label>Asset Name</label>
-                            <input type="text" name="name" value={formData.name} onChange={handleChange} placeholder="e.g. Fine Art Collection 2024" required />
+                            <label className={labelClasses}>Asset Name</label>
+                            <input type="text" name="name" value={formData.name} onChange={handleChange} placeholder="e.g. Fine Art Collection 2024" className={inputClasses} required />
                         </div>
                         <div>
-                            <label>Asset Symbol</label>
-                            <input type="text" name="symbol" value={formData.symbol} onChange={handleChange} placeholder="e.g. FAC24" required />
+                            <label className={labelClasses}>Asset Symbol</label>
+                            <input type="text" name="symbol" value={formData.symbol} onChange={handleChange} placeholder="e.g. FAC24" className={inputClasses} required />
                         </div>
                     </div>
 
-                    <div className="mb-6">
-                        <label>Asset Description</label>
-                        <textarea name="description" value={formData.description} onChange={handleChange} placeholder="Detailed description of the asset..." rows="4" style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', background: 'var(--glass)', border: '1px solid var(--card-border)', color: 'var(--text-main)', outline: 'none' }}></textarea>
+                    <div>
+                        <label className={labelClasses}>Asset Description</label>
+                        <textarea
+                            name="description"
+                            value={formData.description}
+                            onChange={handleChange}
+                            placeholder="Detailed description of the asset..."
+                            rows="4"
+                            className={`${inputClasses} resize-none`}
+                        ></textarea>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-6 mb-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
-                            <label>Asset Type</label>
-                            <select name="type" value={formData.type} onChange={handleChange} style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', background: 'var(--glass)', border: '1px solid var(--card-border)', color: 'var(--text-main)', outline: 'none' }}>
+                            <label className={labelClasses}>Asset Type</label>
+                            <select name="type" value={formData.type} onChange={handleChange} className={inputClasses}>
                                 <option value="ART">Art</option>
                                 <option value="METAL">Metals (Gold/Silver/etc.)</option>
                                 <option value="REAL_ESTATE">Real Estate</option>
@@ -79,37 +94,51 @@ const AssetOnboardingPage = () => {
                             </select>
                         </div>
                         <div>
-                            <label>Valuation (USD)</label>
-                            <input type="number" name="valuation" value={formData.valuation} onChange={handleChange} placeholder="e.g. 50000" step="0.01" required />
+                            <label className={labelClasses}>Valuation (USD)</label>
+                            <div className="relative">
+                                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">$</span>
+                                <input type="number" name="valuation" value={formData.valuation} onChange={handleChange} placeholder="e.g. 50000" step="0.01" className={`${inputClasses} pl-8`} required />
+                            </div>
                         </div>
                     </div>
 
-                    <div className="mb-6">
-                        <label>Physical Location (Optional)</label>
-                        <input type="text" name="location" value={formData.location} onChange={handleChange} placeholder="e.g. Geneva Freeport, Switzerland" />
+                    <div>
+                        <label className={labelClasses}>Physical Location (Optional)</label>
+                        <input type="text" name="location" value={formData.location} onChange={handleChange} placeholder="e.g. Geneva Freeport, Switzerland" className={inputClasses} />
                     </div>
 
-                    <div style={{ marginTop: '2rem', padding: '1.5rem', borderRadius: '12px', border: '1px solid var(--card-border)', background: 'rgba(99, 102, 241, 0.05)' }}>
-                        <div className="flex items-center gap-2 mb-4" style={{ fontWeight: 'bold', color: 'var(--accent)' }}>
+                    <div className="mt-8 p-6 rounded-xl border border-primary/20 bg-primary/5">
+                        <div className="flex items-center gap-2 mb-6 font-bold text-primary">
                             <Building2 size={20} /> Company / Entity Details (Optional)
                         </div>
-                        <div className="grid grid-cols-2 gap-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
-                                <label>Company Name</label>
-                                <input type="text" name="companyName" value={formData.companyName} onChange={handleChange} placeholder="e.g. Aura Assets LLC" />
+                                <label className={labelClasses}>Company Name</label>
+                                <input type="text" name="companyName" value={formData.companyName} onChange={handleChange} placeholder="e.g. Aura Assets LLC" className={inputClasses} />
                             </div>
                             <div>
-                                <label>Registration Number</label>
-                                <input type="text" name="companyRegNumber" value={formData.companyRegNumber} onChange={handleChange} placeholder="e.g. REG-123456" />
+                                <label className={labelClasses}>Registration Number</label>
+                                <input type="text" name="companyRegNumber" value={formData.companyRegNumber} onChange={handleChange} placeholder="e.g. REG-123456" className={inputClasses} />
                             </div>
                         </div>
                     </div>
 
-                    {error && <p style={{ color: '#ef4444', marginTop: '1rem', fontSize: '0.875rem' }}>{error}</p>}
+                    {error && (
+                        <div className="p-4 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg text-sm border border-red-200 dark:border-red-800 flex items-center gap-2">
+                            <Server size={16} /> {error}
+                        </div>
+                    )}
 
-                    <button type="submit" disabled={loading} style={{ marginTop: '2rem', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
-                        <Send size={18} /> {loading ? 'Processing...' : 'Submit Onboarding Request'}
-                    </button>
+                    <div className="pt-4">
+                        <button type="submit" disabled={loading} className="btn-primary w-full py-4 text-base flex flex-row items-center justify-center gap-2 border shadow-none">
+                            {loading ? (
+                                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                            ) : (
+                                <Send size={20} />
+                            )}
+                            {loading ? 'Processing Protocol Request...' : 'Submit Onboarding Request'}
+                        </button>
+                    </div>
                 </form>
             </div>
         </div>

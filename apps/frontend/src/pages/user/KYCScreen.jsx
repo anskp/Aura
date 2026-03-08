@@ -79,7 +79,6 @@ const KYCScreen = () => {
                 })
                 .on('onStatusChanged', (payload) => {
                     console.log('Sumsub status changed', payload);
-                    // Broadening to any terminal state to ensure the button appears
                     if (['SUBMITTED', 'COMPLETED', 'APPROVED', 'REJECTED'].includes(payload)) {
                         setShowContinueButton(true);
                     }
@@ -100,71 +99,74 @@ const KYCScreen = () => {
     };
 
     if (loading) return (
-        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '60vh' }}>
-            <div className="spinner"></div>
-            <p style={{ marginLeft: '1rem' }}>Checking verification status...</p>
+        <div className="flex justify-center items-center min-h-[60vh]">
+            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary"></div>
+            <p className="ml-4 text-slate-500 font-medium">Checking verification status...</p>
         </div>
     );
 
     return (
-        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '80vh', padding: '2rem' }}>
-            <div className="glass-card" style={{ width: '100%', maxWidth: '600px', textAlign: 'center' }}>
+        <div className="flex justify-center items-center min-h-[80vh] p-4 lg:p-8 animate-in fade-in duration-500">
+            <div className="bg-white dark:bg-background-dark border border-slate-200 dark:border-slate-800 rounded-3xl p-8 lg:p-12 shadow-sm w-full max-w-2xl text-center">
 
-                <div style={{ marginBottom: '2rem' }}>
-                    {(!kycStatus || kycStatus === 'NOT_STARTED') && <Shield size={64} style={{ color: 'var(--text-muted)' }} />}
-                    {(kycStatus === 'PENDING' || kycStatus === 'IN_REVIEW') && <Clock size={64} style={{ color: 'var(--primary)' }} />}
-                    {kycStatus === 'APPROVED' && <CheckCircle size={64} style={{ color: 'var(--accent)' }} />}
-                    {kycStatus === 'REJECTED' && <AlertCircle size={64} style={{ color: 'var(--error, #ef4444)' }} />}
+                <div className="flex justify-center mb-6">
+                    {(!kycStatus || kycStatus === 'NOT_STARTED') && <div className="p-4 bg-slate-100 dark:bg-slate-800 rounded-full text-slate-400"><Shield size={48} /></div>}
+                    {(kycStatus === 'PENDING' || kycStatus === 'IN_REVIEW') && <div className="p-4 bg-primary/10 rounded-full text-primary"><Clock size={48} /></div>}
+                    {kycStatus === 'APPROVED' && <div className="p-4 bg-emerald-100/50 dark:bg-emerald-900/30 rounded-full text-emerald-500"><CheckCircle size={48} /></div>}
+                    {kycStatus === 'REJECTED' && <div className="p-4 bg-red-100/50 dark:bg-red-900/30 rounded-full text-red-500"><AlertCircle size={48} /></div>}
                 </div>
 
-                <h2>Identity Verification</h2>
+                <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2 bg-none">Identity Verification</h2>
 
                 {redirectMessage && (
-                    <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid #ef4444', color: '#ef4444', padding: '1rem', borderRadius: '8px', marginBottom: '1rem', fontSize: '0.875rem' }}>
+                    <div className="p-4 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-xl text-sm border border-red-200 dark:border-red-800 mb-6">
                         {redirectMessage}
                     </div>
                 )}
 
-                <p style={{ color: 'var(--text-muted)', marginBottom: '2rem' }}>
+                <p className="text-slate-500 mb-8 max-w-md mx-auto">
                     To comply with global financial regulations and access the AURA RWA Marketplace, please complete your KYC.
                 </p>
 
-                <div style={{ background: 'var(--glass)', padding: '1.5rem', borderRadius: '12px', marginBottom: '2rem' }}>
-                    <p style={{ fontSize: '0.875rem', marginBottom: '0.5rem' }}>Current Status:</p>
-                    <h3 style={{ margin: 0, color: kycStatus === 'APPROVED' ? 'var(--accent)' : 'inherit' }}>
+                <div className="bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 p-6 rounded-2xl mb-8">
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Current Status:</p>
+                    <h3 className={`text-lg font-bold m-0 ${kycStatus === 'APPROVED' ? 'text-emerald-500' : 'text-slate-900 dark:text-white'}`}>
                         {kycStatus?.replace('_', ' ') || 'NOT STARTED'}
                     </h3>
                     {kycReason && (
-                        <p style={{ color: '#ef4444', fontSize: '0.875rem', marginTop: '0.5rem' }}>
-                            Reason: {kycReason}
+                        <p className="text-red-500 text-sm mt-3 bg-red-50 dark:bg-red-900/20 p-3 rounded-lg border border-red-100 dark:border-red-900/50 inline-block">
+                            <span className="font-bold">Reason:</span> {kycReason}
                         </p>
                     )}
                 </div>
 
                 {(!kycStatus || kycStatus === 'NOT_STARTED' || kycStatus === 'REJECTED') && !sdkLoading && !showContinueButton && (
-                    <button onClick={launchWebSDK} style={{ width: 'auto', padding: '1rem 2rem' }}>
+                    <button
+                        onClick={launchWebSDK}
+                        className="btn-primary w-full md:w-auto px-10 py-3.5 text-base border shadow-none"
+                    >
                         {kycStatus === 'REJECTED' ? 'Retry Verification' : 'Start Verification'}
                     </button>
                 )}
 
                 {(kycStatus === 'PENDING' || kycStatus === 'IN_REVIEW') && !showContinueButton && (
-                    <div>
-                        <p style={{ color: 'var(--text-muted)', marginBottom: '1.5rem' }}>
+                    <div className="space-y-6">
+                        <p className="text-slate-500 text-sm">
                             Your documents are under review. This usually takes a few minutes.
                         </p>
-                        <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
-                            <button onClick={fetchKYCStatus} className="secondary" style={{ width: 'auto', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <div className="flex flex-col md:flex-row gap-3 justify-center items-center">
+                            <button onClick={fetchKYCStatus} className="btn-secondary flex items-center gap-2 border shadow-none px-6">
                                 <RefreshCcw size={18} /> Refresh Status
                             </button>
                             <button
                                 onClick={handleVerifyCompletion}
                                 disabled={verifying}
-                                style={{ width: 'auto', background: 'var(--primary)', color: 'white' }}
+                                className="btn-primary flex items-center gap-2 border shadow-none px-6"
                             >
                                 {verifying ? 'Checking...' : 'Check Sumsub Sync'}
                             </button>
                             {!sdkLoading && (
-                                <button onClick={launchWebSDK} className="secondary" style={{ width: 'auto' }}>
+                                <button onClick={launchWebSDK} className="btn-secondary border shadow-none px-6">
                                     Open Verification Wall
                                 </button>
                             )}
@@ -173,8 +175,8 @@ const KYCScreen = () => {
                 )}
 
                 {kycStatus === 'APPROVED' && (
-                    <div>
-                        <p style={{ color: 'var(--accent)', marginBottom: '1.5rem' }}>
+                    <div className="space-y-6">
+                        <p className="text-emerald-600 dark:text-emerald-400 font-medium">
                             You are fully verified! You can now access the marketplace and trade assets.
                         </p>
                         <button
@@ -182,32 +184,37 @@ const KYCScreen = () => {
                                 await refreshUser();
                                 navigate('/dashboard');
                             }}
-                            style={{ width: 'auto', display: 'flex', alignItems: 'center', gap: '0.5rem', margin: '0 auto' }}
+                            className="btn-primary flex items-center gap-2 mx-auto justify-center px-8 border shadow-none"
                         >
                             Go to Marketplace <ExternalLink size={18} />
                         </button>
                     </div>
                 )}
 
-                {sdkLoading && <p>Initializing secure verification session...</p>}
+                {sdkLoading && (
+                    <div className="flex justify-center items-center mt-6 text-slate-500">
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary mr-3"></div>
+                        Initializing secure verification session...
+                    </div>
+                )}
 
-                <div id="sumsub-websdk-container" style={{ marginTop: '2rem', borderRadius: '12px', overflow: 'hidden' }}></div>
+                <div id="sumsub-websdk-container" className="mt-8 rounded-2xl overflow-hidden shadow-sm border border-slate-200 dark:border-slate-800"></div>
 
                 {showContinueButton && (
-                    <div style={{ marginTop: '2rem' }}>
+                    <div className="mt-8 pt-8 border-t border-slate-100 dark:border-slate-800">
                         <button
                             onClick={handleVerifyCompletion}
                             disabled={verifying}
-                            style={{
-                                background: 'var(--accent)',
-                                color: 'var(--bg)',
-                                fontWeight: 'bold',
-                                padding: '1rem 2.5rem'
-                            }}
+                            className="btn-primary w-full md:w-auto px-10 py-3.5 text-base border shadow-none"
                         >
-                            {verifying ? 'Verifying...' : 'Continue to Marketplace'}
+                            {verifying ? (
+                                <span className="flex items-center justify-center gap-2">
+                                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                                    Verifying...
+                                </span>
+                            ) : 'Continue to Marketplace'}
                         </button>
-                        <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginTop: '1rem' }}>
+                        <p className="text-xs text-slate-500 mt-4">
                             Clicking this will sync your status with our system.
                         </p>
                     </div>

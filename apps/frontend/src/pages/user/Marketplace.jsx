@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import api from '../../services/api';
 import AssetCard from '../../components/marketplace/AssetCard';
 import InvestmentModal from '../../components/marketplace/InvestmentModal';
-import { ShoppingBag, Filter, Palette, Landmark, Coins, Leaf, Package, BarChart3, Globe, ShieldCheck } from 'lucide-react';
 
 const Marketplace = () => {
     const [pools, setPools] = useState([]);
@@ -41,104 +40,54 @@ const Marketplace = () => {
         : pools.filter(p => p.asset.type === filter);
 
     const categories = [
-        { id: 'ALL', label: 'All Assets', icon: <Package size={18} /> },
-        { id: 'ART', label: 'Fine Art', icon: <Palette size={18} /> },
-        { id: 'METAL', label: 'Precious Metals', icon: <Coins size={18} /> },
-        { id: 'REAL_ESTATE', label: 'Real Estate', icon: <Landmark size={18} /> },
-        { id: 'CARBON', label: 'Carbon Credits', icon: <Leaf size={18} /> },
+        { id: 'ALL', label: 'All Assets' },
+        { id: 'ART', label: 'Fine Art' },
+        { id: 'METAL', label: 'Precious Metals' },
+        { id: 'REAL_ESTATE', label: 'Real Estate' },
+        { id: 'CARBON', label: 'Carbon Credits' },
     ];
 
     if (loading) {
         return (
-            <div style={{ minHeight: '80vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <div className="animate-fade-in" style={{ textAlign: 'center' }}>
-                    <div style={{ width: '40px', height: '40px', border: '3px solid var(--glass)', borderTopColor: 'var(--primary)', borderRadius: '50%', animation: 'borderGlow 1s infinite linear', margin: '0 auto 1rem' }}></div>
-                    <p style={{ color: 'var(--text-muted)' }}>Loading Marketplace...</p>
-                </div>
+            <div className="flex justify-center items-center h-64">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                <p className="ml-4 text-slate-500 font-medium">Loading Marketplace...</p>
             </div>
         );
     }
 
     return (
-        <div className="animate-fade-in" style={{ padding: '2rem' }}>
-            {/* Header Section */}
-            <header style={{ marginBottom: '3rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
-                    <div style={{ padding: '0.75rem', background: 'rgba(99, 102, 241, 0.1)', borderRadius: '12px', color: 'var(--primary)' }}>
-                        <ShoppingBag size={32} />
-                    </div>
-                    <div>
-                        <h1 style={{ margin: 0, fontSize: '2.5rem' }} className="text-gradient">AURA Marketplace</h1>
-                        <p style={{ color: 'var(--text-muted)', margin: 0 }}>Institutional RWA Exchange & Primary Issuance Hub</p>
-                    </div>
+        <div className="space-y-6 animate-in fade-in duration-500">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-6">
+                <div>
+                    <h3 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white bg-none mb-1">Active Marketplace</h3>
+                    <p className="text-slate-500 text-sm">Discover and invest in tokenized real-world assets</p>
                 </div>
-
-                {/* Market Stats */}
-                <div className="grid grid-cols-3 gap-6" style={{ marginTop: '2rem' }}>
-                    <div className="glass-card" style={{ padding: '1.25rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                        <BarChart3 className="text-accent" />
-                        <div>
-                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Total TVL</div>
-                            <div style={{ fontSize: '1.25rem', fontWeight: 700 }}>$1.2M+</div>
-                        </div>
-                    </div>
-                    <div className="glass-card" style={{ padding: '1.25rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                        <Globe style={{ color: '#60a5fa' }} />
-                        <div>
-                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Assets Listed</div>
-                            <div style={{ fontSize: '1.25rem', fontWeight: 700 }}>{pools.length} Assets</div>
-                        </div>
-                    </div>
-                    <div className="glass-card" style={{ padding: '1.25rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                        <ShieldCheck style={{ color: '#fbbf24' }} />
-                        <div>
-                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Compliance</div>
-                            <div style={{ fontSize: '1.25rem', fontWeight: 700 }}>ERC-3643 Verified</div>
-                        </div>
-                    </div>
-                </div>
-            </header>
-
-            {/* Filter Section */}
-            <section style={{ marginBottom: '2.5rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem' }}>
-                    <Filter size={18} style={{ color: 'var(--text-muted)' }} />
-                    <span style={{ fontWeight: 600, fontSize: '0.875rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Filter by Category</span>
-                </div>
-                <div style={{ display: 'flex', gap: '0.75rem', overflowX: 'auto', paddingBottom: '0.5rem' }}>
+                <div className="flex items-center p-1 bg-slate-50 dark:bg-slate-800/50 rounded-full border border-slate-100 dark:border-slate-700 overflow-x-auto no-scrollbar">
                     {categories.map(cat => (
                         <button
                             key={cat.id}
                             onClick={() => setFilter(cat.id)}
-                            className={filter === cat.id ? '' : 'secondary'}
-                            style={{
-                                width: 'auto',
-                                padding: '0.6rem 1.25rem',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '0.6rem',
-                                whiteSpace: 'nowrap',
-                                borderRadius: '999px',
-                                border: filter === cat.id ? 'none' : '1px solid var(--card-border)',
-                                fontSize: '0.875rem'
-                            }}
+                            className={`whitespace-nowrap px-6 py-2 rounded-full text-xs font-bold transition-all duration-300 border-none cursor-pointer ${filter === cat.id
+                                ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm transform scale-[1.02]'
+                                : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white bg-transparent hover:bg-white/50 dark:hover:bg-slate-700/50'
+                                }`}
                         >
-                            {cat.icon}
                             {cat.label}
                         </button>
                     ))}
                 </div>
-            </section>
+            </div>
 
             {/* Assets Grid */}
             {filteredPools.length === 0 ? (
-                <div className="glass-card animate-slide-up" style={{ textAlign: 'center', padding: '5rem 2rem', background: 'rgba(255,255,255,0.02)' }}>
-                    <Package size={48} style={{ color: 'var(--card-border)', marginBottom: '1.5rem' }} />
-                    <h3 style={{ marginBottom: '0.5rem' }}>No assets found</h3>
-                    <p style={{ color: 'var(--text-muted)' }}>Try selecting a different category or check back later for new issuances.</p>
+                <div className="bg-white dark:bg-background-dark border border-slate-200 dark:border-slate-800 rounded-2xl p-12 text-center">
+                    <span className="material-symbols-outlined text-6xl text-slate-300 dark:text-slate-700 mb-4 block">inventory_2</span>
+                    <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2 bg-none">No assets found</h3>
+                    <p className="text-slate-500">Try selecting a different category or check back later for new issuances.</p>
                 </div>
             ) : (
-                <div className="grid grid-cols-3 gap-8">
+                <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
                     {filteredPools.map(pool => (
                         <AssetCard
                             key={pool.id}
