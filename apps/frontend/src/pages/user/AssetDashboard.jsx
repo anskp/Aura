@@ -6,12 +6,15 @@ import { BlockchainService } from '../../services/blockchain.service';
 import { useAuth } from '../../context/AuthContext';
 import { ethers } from 'ethers';
 import AssetCard from '../../components/marketplace/AssetCard';
+import AssetDetailModal from '../../components/marketplace/AssetDetailModal';
 
 const AssetDashboard = () => {
     const [assets, setAssets] = useState([]);
     const [loading, setLoading] = useState(true);
     const [deployingId, setDeployingId] = useState(null);
     const [staleMap, setStaleMap] = useState({}); // assetId -> boolean (isStale)
+    const [detailAsset, setDetailAsset] = useState(null);
+    const [isDetailOpen, setIsDetailOpen] = useState(false);
     const navigate = useNavigate();
     const { user } = useAuth();
 
@@ -270,8 +273,11 @@ const AssetDashboard = () => {
                             <AssetCard
                                 key={asset.id}
                                 asset={enrichedAsset}
-                                isPreview={true}
                                 customAction={customAction}
+                                onInvest={() => {
+                                    setDetailAsset(enrichedAsset);
+                                    setIsDetailOpen(true);
+                                }}
                             />
                         );
                     })}
@@ -293,6 +299,47 @@ const AssetDashboard = () => {
                     )}
                 </div>
             )}
+
+            <AssetDetailModal
+                asset={detailAsset}
+                isOpen={isDetailOpen}
+                onClose={() => setIsDetailOpen(false)}
+                customAction={detailAsset && (() => {
+                    // Recompute action live so spinner reflects current deployingId
+                    const a = detailAsset;
+                    if (a.status === 'APPROVED') return (
+                        <button
+                            className="flex items-center gap-2.5 px-8 py-3.5 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 font-extrabold text-sm tracking-wide rounded-2xl shadow-lg transition-all duration-200 cursor-pointer border-none hover:bg-primary hover:text-white"
+                            onClick={(e) => { e.stopPropagation(); setIsDetailOpen(false); handleDeployToken(a); }}
+                            disabled={deployingId === a.id}
+                        >
+                            {deployingId === a.id ? <Loader2 className="animate-spin" size={16} /> : <Rocket size={16} />}
+                            Deploy RWA Stack
+                        </button>
+                    );
+                    if (a.status === 'TOKENIZED') return (
+                        <button
+                            className="flex items-center gap-2.5 px-8 py-3.5 bg-emerald-500 hover:bg-emerald-600 text-white font-extrabold text-sm tracking-wide rounded-2xl shadow-lg shadow-emerald-500/25 transition-all duration-200 cursor-pointer border-none"
+                            onClick={(e) => { e.stopPropagation(); setIsDetailOpen(false); handleListInPool(a); }}
+                            disabled={deployingId === a.id}
+                        >
+                            {deployingId === a.id ? <Loader2 className="animate-spin" size={16} /> : <List size={16} />}
+                            List in Marketplace
+                        </button>
+                    );
+                    if (a.status === 'LISTED') return (
+                        <button
+                            className="flex items-center gap-2.5 px-8 py-3.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 font-extrabold text-sm tracking-wide rounded-2xl transition-all duration-200 cursor-pointer border border-slate-200 dark:border-slate-700"
+                            onClick={(e) => { e.stopPropagation(); handleSyncOracle(a); }}
+                            disabled={deployingId === a.id}
+                        >
+                            {deployingId === a.id ? <Loader2 className="animate-spin" size={16} /> : <Activity size={16} />}
+                            Sync On-Chain Data
+                        </button>
+                    );
+                    return <p className="text-xs text-slate-400 italic">Awaiting AI Valuation &amp; Admin Approval</p>;
+                })()}
+            />
         </div>
     );
 };

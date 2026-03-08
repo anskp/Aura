@@ -40,6 +40,39 @@ const AssetOnboardingPage = () => {
         }
     };
 
+    const assetTypes = [
+        {
+            id: 'ART',
+            label: 'Fine Art',
+            icon: '🎨',
+            description: 'Paintings, sculptures & collectibles',
+        },
+        {
+            id: 'METAL',
+            label: 'Precious Metals',
+            icon: '🥇',
+            description: 'Gold, silver, platinum & more',
+        },
+        {
+            id: 'REAL_ESTATE',
+            label: 'Real Estate',
+            icon: '🏛️',
+            description: 'Commercial & residential property',
+        },
+        {
+            id: 'CARBON',
+            label: 'Carbon Credits',
+            icon: '🌿',
+            description: 'Verified carbon offset units',
+        },
+        {
+            id: 'OTHER',
+            label: 'Other',
+            icon: '📦',
+            description: 'Alternative & emerging asset classes',
+        },
+    ];
+
     const inputClasses = "w-full px-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary text-sm font-medium text-slate-900 dark:text-white placeholder-slate-400 transition-all shadow-sm";
     const labelClasses = "block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2";
 
@@ -58,7 +91,46 @@ const AssetOnboardingPage = () => {
                     <p className="text-slate-500 text-sm font-medium">Provide the details for your real-world asset (RWA).</p>
                 </div>
 
-                <form onSubmit={handleSubmit} className="space-y-6">
+                <form onSubmit={handleSubmit} className="space-y-8">
+
+                    {/* ── Asset Type Selector ── */}
+                    <div>
+                        <label className={labelClasses}>Asset Type</label>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 mt-1">
+                            {assetTypes.map((t) => {
+                                const selected = formData.type === t.id;
+                                return (
+                                    <button
+                                        key={t.id}
+                                        type="button"
+                                        onClick={() => setFormData({ ...formData, type: t.id })}
+                                        className={`relative flex flex-col items-center gap-2 p-4 rounded-2xl border-2 cursor-pointer transition-all duration-200 text-center
+                                            ${selected
+                                                ? 'border-primary bg-primary/5 dark:bg-primary/10 shadow-md shadow-primary/10 scale-[1.03]'
+                                                : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/40 hover:border-primary/40 hover:bg-slate-50 dark:hover:bg-slate-800'
+                                            }`}
+                                    >
+                                        {selected && (
+                                            <div className="absolute top-2 right-2 w-4 h-4 rounded-full bg-primary flex items-center justify-center">
+                                                <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                                </svg>
+                                            </div>
+                                        )}
+                                        <span className="text-3xl leading-none">{t.icon}</span>
+                                        <div>
+                                            <p className={`text-[11px] font-extrabold uppercase tracking-wide leading-tight ${selected ? 'text-primary' : 'text-slate-700 dark:text-slate-200'}`}>
+                                                {t.label}
+                                            </p>
+                                            <p className="text-[9px] text-slate-400 leading-tight mt-0.5 hidden sm:block">{t.description}</p>
+                                        </div>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+
+                    {/* ── Core Details ── */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
                             <label className={labelClasses}>Asset Name</label>
@@ -84,30 +156,19 @@ const AssetOnboardingPage = () => {
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
-                            <label className={labelClasses}>Asset Type</label>
-                            <select name="type" value={formData.type} onChange={handleChange} className={inputClasses}>
-                                <option value="ART">Art</option>
-                                <option value="METAL">Metals (Gold/Silver/etc.)</option>
-                                <option value="REAL_ESTATE">Real Estate</option>
-                                <option value="CARBON">Carbon Credits</option>
-                                <option value="OTHER">Other</option>
-                            </select>
-                        </div>
-                        <div>
                             <label className={labelClasses}>Valuation (USD)</label>
                             <div className="relative">
                                 <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">$</span>
                                 <input type="number" name="valuation" value={formData.valuation} onChange={handleChange} placeholder="e.g. 50000" step="0.01" className={`${inputClasses} pl-8`} required />
                             </div>
                         </div>
+                        <div>
+                            <label className={labelClasses}>Physical Location (Optional)</label>
+                            <input type="text" name="location" value={formData.location} onChange={handleChange} placeholder="e.g. Geneva Freeport, Switzerland" className={inputClasses} />
+                        </div>
                     </div>
 
-                    <div>
-                        <label className={labelClasses}>Physical Location (Optional)</label>
-                        <input type="text" name="location" value={formData.location} onChange={handleChange} placeholder="e.g. Geneva Freeport, Switzerland" className={inputClasses} />
-                    </div>
-
-                    <div className="mt-8 p-6 rounded-xl border border-primary/20 bg-primary/5">
+                    <div className="p-6 rounded-xl border border-primary/20 bg-primary/5">
                         <div className="flex items-center gap-2 mb-6 font-bold text-primary">
                             <Building2 size={20} /> Company / Entity Details (Optional)
                         </div>

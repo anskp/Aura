@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import api from '../../services/api';
 import AssetCard from '../../components/marketplace/AssetCard';
+import AssetDetailModal from '../../components/marketplace/AssetDetailModal';
 import InvestmentModal from '../../components/marketplace/InvestmentModal';
 
 const Marketplace = () => {
@@ -8,6 +9,8 @@ const Marketplace = () => {
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState('ALL');
     const [selectedPool, setSelectedPool] = useState(null);
+    const [detailPool, setDetailPool] = useState(null);
+    const [isDetailOpen, setIsDetailOpen] = useState(false);
     const [isModalOpen, setIsModalOpen] = useState(false);
 
     const fetchPools = async () => {
@@ -25,13 +28,21 @@ const Marketplace = () => {
         fetchPools();
     }, []);
 
-    const handleInvestClick = (pool) => {
+    // Step 1: Open detail view
+    const handleDetailClick = (pool) => {
+        setDetailPool(pool);
+        setIsDetailOpen(true);
+    };
+
+    // Step 2: From detail view, open investment modal
+    const handleInvestClick = () => {
+        if (!detailPool) return;
         setSelectedPool({
-            ...pool.asset,
-            pool: pool,
-            address: pool.address,
-            stablecoinAddress: pool.stablecoinAddress,
-            assetId: pool.asset.id
+            ...detailPool.asset,
+            pool: detailPool,
+            address: detailPool.address,
+            stablecoinAddress: detailPool.stablecoinAddress,
+            assetId: detailPool.asset.id
         });
         setIsModalOpen(true);
     };
@@ -93,11 +104,18 @@ const Marketplace = () => {
                         <AssetCard
                             key={pool.id}
                             asset={{ ...pool.asset, totalLiquidity: pool.totalLiquidity }}
-                            onInvest={() => handleInvestClick(pool)}
+                            onInvest={() => handleDetailClick(pool)}
                         />
                     ))}
                 </div>
             )}
+
+            <AssetDetailModal
+                pool={detailPool}
+                isOpen={isDetailOpen}
+                onClose={() => setIsDetailOpen(false)}
+                onInvest={handleInvestClick}
+            />
 
             {selectedPool && (
                 <InvestmentModal
