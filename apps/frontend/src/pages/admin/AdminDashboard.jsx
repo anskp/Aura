@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import api from '../../services/api';
-import { UserCheck, UserX, AlertCircle, CheckCircle, Clock, Package, Award } from 'lucide-react';
+import { UserCheck, UserX, AlertCircle, CheckCircle, Clock, Package, Shield } from 'lucide-react';
+import { ethers } from 'ethers';
+import { BlockchainService } from '../../services/blockchain.service';
 
 const AdminDashboard = () => {
     const [users, setUsers] = useState([]);
@@ -185,6 +187,49 @@ const AdminDashboard = () => {
                 </div>
             </section>
 
+            {/* System Governance */}
+            <section className="mb-10">
+                <div className="flex items-center gap-2 mb-4">
+                    <Shield className="text-secondary" size={24} style={{ color: '#6366f1' }} />
+                    <h2 style={{ margin: 0 }}>System Governance</h2>
+                </div>
+                <div className="glass-card" style={{ padding: '2rem' }}>
+                    <div style={{ maxWidth: '600px' }}>
+                        <h4 className="mb-2">On-Chain Role Management</h4>
+                        <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginBottom: '1.5rem' }}>
+                            Grant a wallet permission to update Net Asset Value (NAV) and Proof of Reserve (PoR) data on the shared oracles.
+                            This is required for Issuers to sync their own asset data during testing.
+                        </p>
+                        <div className="flex gap-4">
+                            <input
+                                type="text"
+                                id="coordinator-address"
+                                placeholder="0x... (Wallet Address)"
+                                style={{ flex: 1, padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--card-border)', background: 'rgba(255,255,255,0.02)' }}
+                            />
+                            <button
+                                onClick={async () => {
+                                    const addr = document.getElementById('coordinator-address').value;
+                                    if (!ethers.isAddress(addr)) return alert("Invalid address");
+
+                                    try {
+                                        console.log(`[Governance] Requesting backend to grant role to ${addr}...`);
+                                        const res = await api.post('/assets/admin/grant-role', { address: addr });
+
+                                        alert("COORDINATOR_ROLE successfully granted via Backend!\n\nTX Nav: " + res.data.navHash.slice(0, 10) + "...\nTX Por: " + res.data.porHash.slice(0, 10) + "...");
+                                    } catch (e) {
+                                        console.error(e);
+                                        alert("Governance failed: " + (e.response?.data?.error || e.message));
+                                    }
+                                }}
+                                style={{ width: 'auto', background: 'var(--accent)', padding: '0 1.5rem', fontWeight: 600 }}
+                            >
+                                Grant Role
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
             {/* Asset Detail Modal */}
             {isDetailModalOpen && selectedAsset && (
                 <div className="fixed inset-0 bg-slate-900/60 dark:bg-black/80 backdrop-blur-sm z-50 flex justify-center items-center p-4">

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
-import { Plus, Box, Calendar, MapPin, Tag, Activity, Rocket, List, Loader2 } from 'lucide-react';
+import { Plus, Box, Calendar, MapPin, Tag, Activity, Rocket, List, Loader2, AlertCircle } from 'lucide-react';
 import { BlockchainService } from '../../services/blockchain.service';
 import { useAuth } from '../../context/AuthContext';
 import { ethers } from 'ethers';
@@ -11,12 +11,48 @@ const AssetDashboard = () => {
     const [assets, setAssets] = useState([]);
     const [loading, setLoading] = useState(true);
     const [deployingId, setDeployingId] = useState(null);
+    const [staleMap, setStaleMap] = useState({}); // assetId -> boolean (isStale)
     const navigate = useNavigate();
     const { user } = useAuth();
 
     useEffect(() => {
         fetchAssets();
     }, []);
+
+    useEffect(() => {
+        if (assets.length > 0) {
+            checkOracleFreshness();
+        }
+    }, [assets]);
+
+    const checkOracleFreshness = async () => {
+        try {
+            const signer = await BlockchainService.getSigner();
+            const navOracleAddr = import.meta.env.VITE_NAV_ORACLE_ADDRESS;
+            const abi = ["function latestNav(bytes32) view returns (uint256, uint256)"];
+            const navOracle = new ethers.Contract(navOracleAddr, abi, signer);
+
+            const newStaleMap = {};
+            for (const asset of assets) {
+                if (asset.status === 'LISTED') {
+                    try {
+                        const poolId = ethers.keccak256(ethers.toUtf8Bytes(asset.name));
+                        const [_, timestamp] = await navOracle.latestNav(poolId);
+
+                        const now = Math.floor(Date.now() / 1000);
+                        const isStale = (now - Number(timestamp)) > 86400; // 24 hours
+                        newStaleMap[asset.id] = isStale || timestamp === 0n;
+                    } catch (e) {
+                        console.warn(`Failed to check freshness for ${asset.name}:`, e.message);
+                        newStaleMap[asset.id] = true; // Assume stale on error
+                    }
+                }
+            }
+            setStaleMap(newStaleMap);
+        } catch (err) {
+            console.error("Freshness check failed:", err);
+        }
+    };
 
     const fetchAssets = async () => {
         try {
@@ -100,6 +136,16 @@ const AssetDashboard = () => {
                 );
             }
 
+            // 2. Backend Oracle Sync (Handling COORDINATOR_ROLE on server)
+            console.log(`[Action] Requesting backend to sync Oracle data for ${asset.name}...`);
+            try {
+                await api.post(`/assets/sync-oracle/${asset.id}`);
+                console.log("[Action] Oracle sync successful via Backend.");
+            } catch (e) {
+                console.warn("[Action] Backend Oracle sync failed/delayed:", e.response?.data?.error || e.message);
+                console.info("[Notice] This is usually fine; a system admin will retry the sync shortly.");
+            }
+
             const signer = await BlockchainService.getSigner();
             const poolId = ethers.keccak256(ethers.toUtf8Bytes(asset.name));
             const assetIdBytes32 = ethers.zeroPadValue(ethers.toBeHex(asset.id), 32);
@@ -149,6 +195,21 @@ const AssetDashboard = () => {
         } catch (err) {
             console.error('[Error] Listing failed:', err);
             alert('Listing failed: ' + err.message);
+        } finally {
+            setDeployingId(null);
+        }
+    };
+
+    const handleSyncOracle = async (asset) => {
+        setDeployingId(asset.id);
+        try {
+            console.log(`[Action] Manual Sync: Requesting backend to update Oracle for ${asset.name}...`);
+            const res = await api.post(`/assets/sync-oracle/${asset.id}`);
+            alert("Oracle Synchronization initiated on-chain via Backend!\n\nTX Nav: " + res.data.navHash.slice(0, 10) + "...\nTX Por: " + res.data.porHash.slice(0, 10) + "...");
+            fetchAssets();
+        } catch (e) {
+            console.error(e);
+            alert("Sync failed: " + (e.response?.data?.error || e.message));
         } finally {
             setDeployingId(null);
         }
