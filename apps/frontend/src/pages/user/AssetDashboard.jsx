@@ -28,15 +28,15 @@ const AssetDashboard = () => {
         try {
             const signer = await BlockchainService.getSigner();
             const navOracleAddr = import.meta.env.VITE_NAV_ORACLE_ADDRESS;
-            const abi = ["function latestNav(bytes32) view returns (uint256, uint256)"];
+            const abi = ["function latestNav(bytes32) view returns (uint256, uint256, bytes32)"];
             const navOracle = new ethers.Contract(navOracleAddr, abi, signer);
 
             const newStaleMap = {};
             for (const asset of assets) {
                 if (asset.status === 'LISTED') {
                     try {
-                        const poolId = ethers.keccak256(ethers.toUtf8Bytes(asset.name));
-                        const [_, timestamp] = await navOracle.latestNav(poolId);
+                        const poolId = ethers.encodeBytes32String(`POOL_${asset.id}`);
+                        const [nav, timestamp] = await navOracle.latestNav(poolId);
 
                         const now = Math.floor(Date.now() / 1000);
                         const isStale = (now - Number(timestamp)) > 86400; // 24 hours
@@ -65,139 +65,105 @@ const AssetDashboard = () => {
     };
 
     const handleDeployToken = async (asset) => {
-        console.log(`[User Action] Initiating tokenization for asset: ${asset.name}`);
-
-        // Defensive check for user wallets
         const userWallet = user.wallets?.[0]?.address;
         if (!userWallet) {
-            alert("No wallet connected. Please connect your wallet in the settings or dashboard before tokenizing.");
+            alert("Please connect your wallet first.");
             return;
         }
 
         setDeployingId(asset.id);
         try {
-            const complianceAddr = import.meta.env.VITE_COMPLIANCE_REGISTRY_ADDRESS || "0x0000000000000000000000000000000000000000";
+            console.log(`[Non-Custodial] Preparing tokenization for ${asset.name}...`);
+            const prep = await api.post(`/assets/prepare-tokenize/${asset.id}`, { userAddress: userWallet });
+            const { abi, bytecode, args } = prep.data;
 
-            // 1. Deploy RWA Stack
-            const result = await BlockchainService.deployRwaStack(
-                asset.name,
-                asset.symbol,
-                userWallet, // User becomes the Admin/Issuer
-                complianceAddr
-            );
+            const signer = await BlockchainService.getSigner();
+            const factory = new ethers.ContractFactory(abi, bytecode, signer);
 
-            // 2. We NO LONGER mint upfront. 
-            // Assets are born with 0 supply, minted only when someone buys.
-            console.log(`[Action] Token stack deployed. Supply remains 0 until first investment.`);
+            console.log("[Wallet] Signing deployment transaction...");
+            const contract = await factory.deploy(...args);
+            await contract.waitForDeployment();
+            const tokenAddress = await contract.getAddress();
+            const txHash = contract.deploymentTransaction().hash;
 
-            console.log(`[API] Finalizing tokenization in database for asset ${asset.id}...`);
-            await api.post(`/assets/finalize-tokenization/${asset.id}`, {
-                address: result.tokenAddress,
-                symbol: asset.symbol,
-                name: asset.name,
-                nav: asset.nav,
-                por: asset.por,
-                navOracle: result.navOracleAddress,
-                porContract: result.porAddress
+            console.log("[Wallet] Linking NavOracle to Token...");
+            const navOracleAddr = import.meta.env.VITE_NAV_ORACLE_ADDRESS;
+            const poolId = ethers.encodeBytes32String(`POOL_${asset.id}`);
+            const linkTx = await contract.setNavOracle(navOracleAddr, poolId);
+            await linkTx.wait();
+
+            console.log(`[Blockchain] Token deployed and linked at ${tokenAddress}. Finalizing...`);
+            await api.post(`/assets/finalize-tokenize/${asset.id}`, {
+                tokenAddress,
+                txHash,
+                userAddress: userWallet
             });
-            console.log(`[User Action] Tokenization complete for ${asset.name}`);
 
             fetchAssets();
-            alert('Tokenized successfully! This asset is now ready to be listed in the Marketplace.');
+            alert('AURA RWA Token deployed successfully via your wallet!');
         } catch (err) {
             console.error('[Error] Tokenization failed:', err);
-            alert('Deployment/Minting failed: ' + (err.reason || err.message));
+            alert('Tokenization failed: ' + (err.response?.data?.error || err.message));
         } finally {
             setDeployingId(null);
         }
     };
 
     const handleListInPool = async (asset) => {
-        console.log(`[User Action] Listing asset ${asset.name} in marketplace...`);
         const userWallet = user.wallets?.[0]?.address;
         if (!userWallet) {
-            alert("No wallet connected. Please connect your wallet.");
+            alert("Please connect your wallet first.");
             return;
         }
 
         setDeployingId(asset.id);
         try {
-            const stablecoinAddress = import.meta.env.VITE_STABLECOIN_ADDRESS;
-            const navOracleAddress = import.meta.env.VITE_NAV_ORACLE_ADDRESS;
-            const porAddress = import.meta.env.VITE_POR_ORACLE_ADDRESS;
-
-            if (!stablecoinAddress || !navOracleAddress || !porAddress) {
-                throw new Error("Shared infrastructure (Stablecoin or Oracles) not configured in environment.");
-            }
-
-            let poolAddress = asset.pool?.address || asset.address; // Correctly resolve pool address
-
-            // Force Sync: Check if the pool contract actually exists on this network
-            const isPoolValid = await BlockchainService.isContract(poolAddress);
-            console.log(`[Blockchain] Pool address ${poolAddress} exists: ${isPoolValid}`);
-
-            if (asset.status !== 'LISTED' || !poolAddress || !isPoolValid) {
-                console.log(`[Action] ${!isPoolValid ? 'Detected dead Pool address. Force re-deploying...' : 'Deploying new LiquidityPool...'}`);
-                poolAddress = await BlockchainService.deployPool(
-                    stablecoinAddress,
-                    asset.tokenAddress,
-                    navOracleAddress,
-                    porAddress,
-                    ethers.keccak256(ethers.toUtf8Bytes(asset.name)),
-                    asset.id,
-                    userWallet
-                );
-            }
-
-            // 2. Backend Oracle Sync (Handling COORDINATOR_ROLE on server)
-            console.log(`[Action] Requesting backend to sync Oracle data for ${asset.name}...`);
-            try {
-                await api.post(`/assets/sync-oracle/${asset.id}`);
-                console.log("[Action] Oracle sync successful via Backend.");
-            } catch (e) {
-                console.warn("[Action] Backend Oracle sync failed/delayed:", e.response?.data?.error || e.message);
-                console.info("[Notice] This is usually fine; a system admin will retry the sync shortly.");
-            }
+            console.log(`[Non-Custodial] Preparing pool deployment for ${asset.name}...`);
+            const prep = await api.post(`/assets/prepare-list/${asset.id}`, { userAddress: userWallet });
+            const { abi, bytecode, args } = prep.data;
 
             const signer = await BlockchainService.getSigner();
+            const factory = new ethers.ContractFactory(abi, bytecode, signer);
 
-            if (asset.status !== 'LISTED') {
-                // 3. Grant ISSUER_ROLE to the Pool
-                console.log(`[Action] Granting ISSUER_ROLE to the Pool...`);
-                const tokenAbi = [
-                    "function grantRole(bytes32 role, address account) external",
-                    "function ISSUER_ROLE() view returns (bytes32)"
-                ];
-                const tokenContract = new ethers.Contract(asset.tokenAddress, tokenAbi, signer);
-                const role = await tokenContract.ISSUER_ROLE();
-                const tx = await tokenContract.grantRole(role, poolAddress);
-                await tx.wait();
-            }
+            console.log("[Wallet] Signing Pool deployment transaction...");
+            const poolContract = await factory.deploy(...args);
+            await poolContract.waitForDeployment();
+            const poolAddress = await poolContract.getAddress();
+            const deployTxHash = poolContract.deploymentTransaction().hash;
 
-            // 4. Ensure user has some Mock USDC for testing (Backend Faucet)
-            try {
-                const balance = await BlockchainService.getBalance(userWallet, stablecoinAddress);
-                if (balance === '0.0') {
-                    console.log(`[Action] Requesting Backend Faucet for 1,000 USDC...`);
-                    await api.post('/assets/faucet', { address: userWallet });
-                }
-            } catch (e) {
-                console.warn("[Notice] Backend Faucet skipped or failed - likely already has balance.");
-            }
-
-            // 5. Finalize or Sync in Backend
-            console.log(`[API] ${asset.status === 'LISTED' ? 'Syncing' : 'Finalizing'} marketplace listing for asset ${asset.id}...`);
-            await api.post(`/assets/finalize-listing/${asset.id}`, {
-                address: poolAddress,
-                stablecoinAddress: stablecoinAddress
+            console.log(`[Blockchain] Pool deployed at ${poolAddress}. Finalizing listing...`);
+            await api.post(`/assets/finalize-list/${asset.id}`, {
+                poolAddress,
+                txHash: deployTxHash,
+                userAddress: userWallet
             });
 
-            console.log(`[User Action] Asset ${asset.name} is now ${asset.status === 'LISTED' ? 'Synced' : 'LIVE'} on marketplace`);
+            // Perform Collateralization (Mint -> Approve -> Deposit)
+            console.log("[Wallet] Signing Collateralization transactions...");
+
+            // 1. Mint RWA tokens (User is Issuer)
+            const tokenAbi = ["function mint(address to, uint256 amount) external", "function approve(address spender, uint256 amount) external"];
+            const tokenContract = new ethers.Contract(asset.tokenAddress, tokenAbi, signer);
+            const collateralAmount = ethers.parseEther(asset.valuation.toString());
+
+            const mintTx = await tokenContract.mint(userWallet, collateralAmount);
+            await mintTx.wait();
+
+            // 2. Approve Pool
+            const approveTx = await tokenContract.approve(poolAddress, collateralAmount);
+            await approveTx.wait();
+
+            // 3. Deposit Collateral
+            const poolAbi = ["function depositCollateral(uint256 amount) external"];
+            const lpContract = new ethers.Contract(poolAddress, poolAbi, signer);
+            const depositTx = await lpContract.depositCollateral(collateralAmount);
+            await depositTx.wait();
+
             fetchAssets();
-            alert(asset.status === 'LISTED' ? 'Oracle data synced successfully!' : 'Listed in Marketplace successfully!');
+            alert('Marketplace listing complete! Pool deployed and collateralized via your wallet.');
         } catch (err) {
             console.error('[Error] Listing failed:', err);
-            alert('Listing failed: ' + err.message);
+            alert('Listing failed: ' + (err.response?.data?.error || err.message));
         } finally {
             setDeployingId(null);
         }
@@ -207,6 +173,8 @@ const AssetDashboard = () => {
         setDeployingId(asset.id);
         try {
             console.log(`[Action] Manual Sync: Requesting backend to update Oracle for ${asset.name}...`);
+            // Sync Oracle stays on backend as it requires Coordinator/Admin roles 
+            // and usually relies on backend valuation logic.
             const res = await api.post(`/assets/sync-oracle/${asset.id}`);
             alert("Oracle Synchronization initiated on-chain via Backend!\n\nTX Nav: " + res.data.navHash.slice(0, 10) + "...\nTX Por: " + res.data.porHash.slice(0, 10) + "...");
             fetchAssets();

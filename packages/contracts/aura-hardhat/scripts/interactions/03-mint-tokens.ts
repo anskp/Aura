@@ -14,9 +14,18 @@ async function main() {
 
     const amount = ethers.parseEther("1000");
     console.log(`Minting ${ethers.formatEther(amount)} RWA tokens to ${deployer.address}...`);
-    const tx = await token.mint(deployer.address, amount);
-    console.log("Transaction hash:", tx.hash);
-    await tx.wait();
+
+    try {
+        const tx = await token.mint(deployer.address, amount);
+        console.log("Transaction hash:", tx.hash);
+        await tx.wait();
+        console.log("Minting successful!");
+    } catch (error: any) {
+        console.error("Minting failed!");
+        console.error("Error message:", error.message);
+        if (error.data) console.error("Error data:", error.data);
+        throw error;
+    }
 
     const balance = await token.balanceOf(deployer.address);
     console.log("New balance:", ethers.formatEther(balance));

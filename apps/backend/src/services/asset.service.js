@@ -1,5 +1,7 @@
 const prisma = require('../config/prisma');
 const geminiService = require('./gemini.service');
+const blockchainService = require('./blockchain.service');
+const { ethers } = require('ethers');
 
 const onboardAsset = async (userId, assetData) => {
     console.log(`[Asset Service] Onboarding new asset: ${assetData.name}`);
@@ -74,6 +76,13 @@ const updateAssetStatus = async (assetId, status) => {
                 por: currentAsset.aiPricing || currentAsset.valuation
             }
         });
+
+        // Auto-sync on-chain if it's already tokenized or just approved
+        if (asset.tokenAddress) {
+            console.log(`[Asset Service] Auto-syncing on-chain for approved/updated asset ${assetId}`);
+            syncAssetOracle(assetId).catch(err => console.error("Auto-sync failed:", err));
+        }
+
         return {
             ...asset,
             valuation: Number(asset.valuation),
@@ -94,69 +103,116 @@ const updateAssetStatus = async (assetId, status) => {
     };
 };
 
-const finalizeTokenization = async (assetId, tokenData) => {
-    const { address, symbol, name, nav, por, navOracle, porContract } = tokenData;
+const prepareTokenization = async (assetId, userAddress) => {
+    console.log(`[Asset Service] Preparing tokenization data for asset ${assetId}`);
+    const asset = await prisma.asset.findUnique({ where: { id: assetId } });
+    if (!asset) throw new Error("Asset not found");
 
-    console.log(`[Asset Service] Finalizing tokenization for asset ${assetId} at ${address}`);
-    // Update asset
+    return blockchainService.prepareTokenDeployment(asset.name, asset.symbol, userAddress);
+};
+
+const finalizeTokenization = async (assetId, tokenAddress, txHash, userAddress) => {
+    console.log(`[Asset Service] Finalizing tokenization for asset ${assetId} at ${tokenAddress}`);
+
     await prisma.asset.update({
         where: { id: assetId },
         data: {
             status: 'TOKENIZED',
-            tokenAddress: address,
-            nav: nav,
-            por: por
+            tokenAddress,
+            deploymentTxHash: txHash
         }
     });
 
-    // Upsert token record
-    const token = await prisma.token.upsert({
-        where: { assetId },
-        create: {
-            address,
-            symbol,
-            name,
+    const asset = await prisma.asset.findUnique({ where: { id: assetId } });
+
+    const token = await prisma.token.create({
+        data: {
+            address: tokenAddress,
+            deploymentTxHash: txHash,
+            name: asset.name,
+            symbol: asset.symbol,
             assetId,
-            navOracle,
-            porContract
-        },
-        update: {
-            address,
-            navOracle,
-            porContract
+            navOracleAddress: process.env.NAV_ORACLE_ADDRESS,
+            porAddress: process.env.POR_ORACLE_ADDRESS
         }
     });
 
+    // Link NavOracle on-chain (Backend can do this since it holds Admin/Coordinator role usually, 
+    // OR we provide data for user to do it. Let's let user do it in a multi-step flow if we want pure non-custodial.
+    // However, setNavOracle on AuraRwaToken is DEFAULT_ADMIN_ROLE.
+    // If user deploys, they are owner/admin. So they must call setNavOracle.
+
+    await blockchainService.recordTransaction(assetId, 'DEPLOY_TOKEN', txHash, userAddress);
     return token;
 };
 
-const finalizeListing = async (assetId, poolData) => {
-    const { address, stablecoinAddress } = poolData;
+const prepareListing = async (assetId, userAddress) => {
+    console.log(`[Asset Service] Preparing listing data for asset ${assetId}`);
+    const asset = await prisma.asset.findUnique({ where: { id: assetId } });
+    if (!asset || !asset.tokenAddress) throw new Error("Asset must be tokenized first");
 
-    console.log(`[Asset Service] Listing asset ${assetId} in pool ${address}`);
+    const poolId = ethers.encodeBytes32String(`POOL_${asset.id}`);
+    const assetIdBytes32 = ethers.encodeBytes32String(`ASSET_${asset.id}`);
+
+    return blockchainService.preparePoolDeployment(userAddress, asset.tokenAddress, poolId, assetIdBytes32);
+};
+
+const finalizeListing = async (assetId, poolAddress, txHash, userAddress) => {
+    console.log(`[Asset Service] Finalizing listing for asset ${assetId} at ${poolAddress}`);
+
     await prisma.asset.update({
         where: { id: assetId },
         data: { status: 'LISTED' }
     });
 
-    // Upsert pool record
-    const pool = await prisma.pool.upsert({
-        where: { assetId },
-        create: {
-            address,
+    const pool = await prisma.pool.create({
+        data: {
+            address: poolAddress,
             assetId,
-            stablecoinAddress,
-            status: 'ACTIVE'
-        },
-        update: {
-            address,
-            stablecoinAddress,
+            stablecoinAddress: process.env.STABLECOIN_ADDRESS || "0x0000000000000000000000000000000000000000",
+            deploymentTxHash: txHash,
             status: 'ACTIVE'
         }
     });
 
-    console.log(`[Asset Service] Pool record updated/created for asset ${assetId}`);
+    await blockchainService.recordTransaction(assetId, 'DEPLOY_POOL', txHash, userAddress);
     return pool;
+};
+
+const recordInvestment = async (poolId, investmentData) => {
+    console.log(`[Asset Service] Recording investment for pool ${poolId}`);
+
+    const { investorAddress, amountPaid, sharesReceived, txHash } = investmentData;
+
+    // Convert values to search for assetId if needed for transaction log
+    const pool = await prisma.pool.findUnique({
+        where: { id: parseInt(poolId) },
+        select: { assetId: true }
+    });
+
+    const investment = await prisma.investment.create({
+        data: {
+            poolId: parseInt(poolId),
+            investorAddress,
+            amountPaid,
+            sharesReceived,
+            txHash
+        }
+    });
+
+    // Update Pool total shares and liquidity
+    await prisma.pool.update({
+        where: { id: parseInt(poolId) },
+        data: {
+            totalLiquidity: { increment: amountPaid },
+            totalShares: { increment: sharesReceived }
+        }
+    });
+
+    // Record it as a transaction as well
+    await blockchainService.recordTransaction(pool?.assetId, 'INVEST', txHash, investorAddress);
+
+    return investment;
 };
 
 const getMarketplacePools = async () => {
@@ -167,6 +223,7 @@ const getMarketplacePools = async () => {
     return pools.map(pool => ({
         ...pool,
         totalLiquidity: Number(pool.totalLiquidity),
+        totalShares: Number(pool.totalShares),
         asset: {
             ...pool.asset,
             valuation: Number(pool.asset.valuation),
@@ -186,17 +243,15 @@ const syncAssetOracle = async (assetId) => {
         throw new Error("Asset or token address not found");
     }
 
-    const { ethers } = require('ethers');
-    const blockchainService = require('./blockchain.service');
-
-    const poolId = ethers.keccak256(ethers.toUtf8Bytes(asset.name));
-    const assetIdBytes32 = ethers.zeroPadValue(ethers.toBeHex(asset.id), 32);
-
-    // Use aiPricing or valuation as the source of truth for sync
+    const poolId = ethers.encodeBytes32String(`POOL_${asset.id}`);
+    const assetIdBytes32 = ethers.encodeBytes32String(`ASSET_${asset.id}`);
     const valuation = asset.aiPricing || asset.valuation;
 
     console.log(`[Asset Service] Backend syncing oracle for ${asset.name}...`);
     const hashes = await blockchainService.syncOracleData(poolId, assetIdBytes32, valuation);
+
+    // Also trigger Chainlink CRE for decentralized reporting
+    await blockchainService.triggerCreNavPor(assetId, valuation, valuation);
 
     // Update DB with the latest synced values
     await prisma.asset.update({
@@ -207,13 +262,21 @@ const syncAssetOracle = async (assetId) => {
         }
     });
 
+    await blockchainService.recordTransaction(assetId, 'SYNC_ORACLE', hashes.navHash, 'SYSTEM');
+
     return hashes;
 };
 
 const grantGovernanceRole = async (walletAddress) => {
     console.log(`[Asset Service] Backend granting coordinator role to ${walletAddress}...`);
-    const blockchainService = require('./blockchain.service');
     return await blockchainService.grantCoordinatorRole(walletAddress);
+};
+
+const getAssetTransactions = async (assetId) => {
+    return await prisma.transaction.findMany({
+        where: { assetId: parseInt(assetId) },
+        orderBy: { createdAt: 'desc' }
+    });
 };
 
 module.exports = {
@@ -221,9 +284,13 @@ module.exports = {
     getUserAssets,
     getAllAssets,
     updateAssetStatus,
+    prepareTokenization,
     finalizeTokenization,
+    prepareListing,
     finalizeListing,
+    recordInvestment,
     getMarketplacePools,
     syncAssetOracle,
-    grantGovernanceRole
+    grantGovernanceRole,
+    getAssetTransactions
 };

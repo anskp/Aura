@@ -52,26 +52,66 @@ const approveAsset = async (req, res) => {
     }
 };
 
-const finalizeTokenization = async (req, res) => {
+const prepareTokenize = async (req, res) => {
     try {
         const { id } = req.params;
-        console.log(`[API] Finalizing tokenization for asset ID: ${id}`);
-        const token = await assetService.finalizeTokenization(parseInt(id), req.body);
-        res.status(200).json(token);
+        const { userAddress } = req.body;
+        console.log(`[API] Preparing tokenization for asset ID: ${id}`);
+        const data = await assetService.prepareTokenization(parseInt(id), userAddress);
+        res.status(200).json(data);
     } catch (error) {
-        console.error(`[API Error] finalizeTokenization: ${error.message}`);
+        console.error(`[API Error] prepareTokenize: ${error.message}`);
         res.status(400).json({ error: error.message });
     }
 };
 
-const finalizeListing = async (req, res) => {
+const finalizeTokenize = async (req, res) => {
     try {
         const { id } = req.params;
-        console.log(`[API] Finalizing listing for asset ID: ${id}`);
-        const pool = await assetService.finalizeListing(parseInt(id), req.body);
-        res.status(200).json(pool);
+        const { tokenAddress, txHash, userAddress } = req.body;
+        console.log(`[API] Finalizing tokenization for asset ID: ${id}`);
+        const result = await assetService.finalizeTokenization(parseInt(id), tokenAddress, txHash, userAddress);
+        res.status(200).json(result);
     } catch (error) {
-        console.error(`[API Error] finalizeListing: ${error.message}`);
+        console.error(`[API Error] finalizeTokenize: ${error.message}`);
+        res.status(400).json({ error: error.message });
+    }
+};
+
+const prepareList = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { userAddress } = req.body;
+        console.log(`[API] Preparing listing for asset ID: ${id}`);
+        const data = await assetService.prepareListing(parseInt(id), userAddress);
+        res.status(200).json(data);
+    } catch (error) {
+        console.error(`[API Error] prepareList: ${error.message}`);
+        res.status(400).json({ error: error.message });
+    }
+};
+
+const finalizeList = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { poolAddress, txHash, userAddress } = req.body;
+        console.log(`[API] Finalizing listing for asset ID: ${id}`);
+        const result = await assetService.finalizeListing(parseInt(id), poolAddress, txHash, userAddress);
+        res.status(200).json(result);
+    } catch (error) {
+        console.error(`[API Error] finalizeList: ${error.message}`);
+        res.status(400).json({ error: error.message });
+    }
+};
+
+const recordInvestment = async (req, res) => {
+    try {
+        const { poolId } = req.params;
+        console.log(`[API] Recording investment for pool: ${poolId}`);
+        const investment = await assetService.recordInvestment(parseInt(poolId), req.body);
+        res.status(200).json(investment);
+    } catch (error) {
+        console.error(`[API Error] recordInvestment: ${error.message}`);
         res.status(400).json({ error: error.message });
     }
 };
@@ -126,15 +166,30 @@ const requestFaucet = async (req, res) => {
     }
 };
 
+const getAssetTransactions = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const transactions = await assetService.getAssetTransactions(id);
+        res.status(200).json(transactions);
+    } catch (error) {
+        console.error(`[API Error] getAssetTransactions: ${error.message}`);
+        res.status(400).json({ error: error.message });
+    }
+};
+
 module.exports = {
     onboardAsset,
     getUserAssets,
     getAllAssets,
     approveAsset,
-    finalizeTokenization,
-    finalizeListing,
+    prepareTokenize,
+    finalizeTokenize,
+    prepareList,
+    finalizeList,
+    recordInvestment,
     getMarketplacePools,
     syncOracle,
     grantRole,
-    requestFaucet
+    requestFaucet,
+    getAssetTransactions
 };

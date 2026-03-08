@@ -1,4 +1,5 @@
 import { task } from "hardhat/config";
+import * as fs from "fs";
 
 task("deploy-core", "Deploys the protocol core stack")
   .addOptionalParam("poolid", "Pool id bytes32", "0x415552415f504f4f4c0000000000000000000000000000000000000000000000")
@@ -162,4 +163,39 @@ task("deploy-core", "Deploys the protocol core stack")
     if (creReporter) console.log("creReporter:", creReporter);
     console.log("poolId:", poolId);
     console.log("assetId:", assetId);
+
+    // Auto-update .env for local testing
+    if (hre.network.name === "localhost" || hre.network.name === "hardhat") {
+      const envPath = "c:/Users/anask/Desktop/convergence/Aura/packages/contracts/.env";
+      let envContent = fs.readFileSync(envPath, 'utf8');
+
+      const updates = {
+        IDENTITY_REGISTRY: await identity.getAddress(),
+        COMPLIANCE_REGISTRY: await compliance.getAddress(),
+        RWA_TOKEN: await token.getAddress(),
+        NAV_ORACLE: await nav.getAddress(),
+        POR_ORACLE: await por.getAddress(),
+        LIQUIDITY_POOL: await pool.getAddress(),
+        STABLECOIN: await stablecoin.getAddress(),
+        MOCK_PROVIDER: await mockProvider.getAddress(),
+        COORDINATOR: await coordinator.getAddress(),
+        AUTOMATION_REGISTRY: await automation.getAddress(),
+        CCIP_SENDER: await ccipSender.getAddress(),
+        CCIP_RECEIVER: await ccipReceiver.getAddress(),
+        ORACLE_CONSUMER: await oracleConsumer.getAddress(),
+        CCIP_CONSUMER: await ccipConsumer.getAddress()
+      };
+
+      for (const [key, value] of Object.entries(updates)) {
+        const regex = new RegExp(`^${key}=.*$`, 'm');
+        if (envContent.match(regex)) {
+          envContent = envContent.replace(regex, `${key}="${value}"`);
+        } else {
+          envContent += `\n${key}="${value}"`;
+        }
+      }
+
+      fs.writeFileSync(envPath, envContent);
+      console.log("Updated .env with new addresses.");
+    }
   });

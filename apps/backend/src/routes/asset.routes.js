@@ -7,10 +7,18 @@ router.post('/onboard', protect, assetController.onboardAsset);
 router.get('/my-assets', protect, assetController.getUserAssets);
 router.get('/admin/all', protect, assetController.getAllAssets);
 router.post('/admin/approve/:id', protect, assetController.approveAsset);
-router.post('/finalize-tokenization/:id', protect, assetController.finalizeTokenization);
-router.post('/finalize-listing/:id', protect, assetController.finalizeListing);
+
+// Non-Custodial Orchestration
+router.post('/prepare-tokenize/:id', protect, assetController.prepareTokenize);
+router.post('/finalize-tokenize/:id', protect, assetController.finalizeTokenize);
+router.post('/prepare-list/:id', protect, assetController.prepareList);
+router.post('/finalize-list/:id', protect, assetController.finalizeList);
+
+router.post('/invest/:poolId', protect, assetController.recordInvestment);
+router.get('/marketplace', assetController.getMarketplacePools);
 router.post('/sync-oracle/:id', protect, assetController.syncOracle);
-router.post('/admin/grant-role', protect, assetController.grantRole);
+router.post('/grant-role', protect, assetController.grantRole);
+router.get('/transactions/:id', protect, assetController.getAssetTransactions);
 router.post('/faucet', protect, assetController.requestFaucet);
 
 module.exports = router;

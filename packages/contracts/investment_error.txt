@@ -1,0 +1,14 @@
+[dotenv@17.3.1] injecting env (27) from .env -- tip: ΓÜÖ∩╕Å  suppress all logs with { quiet: true }
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ≡ƒ¢á∩╕Å  run anywhere with `dotenvx run -- yourcommand`
+Compiled 43 Solidity files successfully (evm target: paris).
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ΓÜí∩╕Å secrets for agents: https://dotenvx.com/as2
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ≡ƒ¢í∩╕Å auth for agents: https://vestauth.com
+[dotenv@17.3.1] injecting env (0) from .env -- tip: ≡ƒöÉ prevent committing .env to code: https://dotenvx.com/precommit
+Using account: 0x5537dbc19eeE936A615B151c8C5983FBF735C583
+Contract Address (LiquidityPool): 0x67AdCcFAF369be2CB9662d06B6b94489eB628C69
+Contract Address (Mock USDC): 0x2c05844b9c7A74bb0797B30DB4a1FAaF2E62462C
+Minting 100.0 Mock USDC to 0x5537dbc19eeE936A615B151c8C5983FBF735C583...
+Approving LiquidityPool to spend 100.0 USDC...
+Investing 100.0 USDC into the pool...
+Investment transaction hash: 0xe011501a471535af18c907f1a810fda99211ca9e4f83a748f17580f72ec2d09b
+Investment successful! Pool share balance (AURAPS): 0.0000000001980198

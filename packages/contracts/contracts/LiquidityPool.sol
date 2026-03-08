@@ -65,7 +65,25 @@ contract LiquidityPool is ERC20, AccessControl, ILiquidityPool {
         maxNavAge = maxAge;
     }
 
-    function previewDeposit(uint256 assets) public view returns (uint256 shares) {
+    /**
+     * @notice Deposit RWA Tokens as collateral/backing for the pool
+     * @param amount Amount of RWA tokens to lock in the vault
+     */
+    function depositCollateral(uint256 amount) external onlyRole(POOL_ADMIN_ROLE) {
+        IERC20(rwaToken).safeTransferFrom(msg.sender, address(this), amount);
+        emit CollateralDeposited(msg.sender, amount);
+    }
+
+    /**
+     * @notice Withdraw RWA Tokens from the pool (Admin only)
+     * @param amount Amount of RWA tokens to remove
+     */
+    function withdrawCollateral(uint256 amount) external onlyRole(POOL_ADMIN_ROLE) {
+        IERC20(rwaToken).safeTransfer(msg.sender, amount);
+        emit CollateralWithdrawn(msg.sender, amount);
+    }
+
+    function previewInvest(uint256 assets) public view returns (uint256 shares) {
         _assertHealthyAndFresh();
         uint256 nav = _getNav();
         
@@ -81,7 +99,7 @@ contract LiquidityPool is ERC20, AccessControl, ILiquidityPool {
         return (normalizedAssets * NAV_SCALE) / nav;
     }
 
-    function previewWithdraw(uint256 shares) public view returns (uint256 assets) {
+    function previewRedeem(uint256 shares) public view returns (uint256 assets) {
         _assertHealthyAndFresh();
         uint256 nav = _getNav();
         uint256 normalizedAssets = (shares * nav) / NAV_SCALE;
@@ -98,53 +116,39 @@ contract LiquidityPool is ERC20, AccessControl, ILiquidityPool {
     }
 
     /**
-     * @notice Deposit Stablecoins to MINT new RWA tokens
-     * @param assets Amount of stablecoins to deposit
-     * @param receiver The address to receive the minted RWA tokens
+     * @notice Invest Stablecoins to receive Pool Shares (AURAPS)
+     * @param assets Amount of stablecoins to invest
+     * @param receiver The address to receive the pool shares
      */
-    function deposit(uint256 assets, address receiver) external returns (uint256 shares) {
+    function invest(uint256 assets, address receiver) external returns (uint256 shares) {
         _assertHealthyAndFresh();
-        shares = previewDeposit(assets);
+        shares = previewInvest(assets);
         
         // 1. Transfer stablecoins from investor to pool
         stablecoin.safeTransferFrom(msg.sender, address(this), assets);
         
-        // 2. MINT new RWA tokens directly to investor
-        // Pool must have ISSUER_ROLE on the rwaToken contract
-        try IAuraRwaMintable(rwaToken).mint(receiver, shares) {
-            // Success
-        } catch {
-            revert("MINT_FAILED_CHECK_POOL_ROLES");
-        }
-        
-        // 3. Mint Pool Shares (AURAPS) to track the investor's stake
+        // 2. Mint Pool Shares (AURAPS) to track the investor's stake
         _mint(receiver, shares);
         
-        emit PoolDeposited(msg.sender, receiver, assets, shares);
+        emit PoolInvested(receiver, assets, shares);
     }
 
-
-    function withdraw(uint256 shares, address receiver) external returns (uint256 assets) {
+    /**
+     * @notice Redeem Pool Shares for Stablecoins
+     * @param shares Amount of pool shares to burn
+     * @param receiver The address to receive the stablecoins
+     */
+    function redeem(uint256 shares, address receiver) external returns (uint256 assets) {
         _assertHealthyAndFresh();
-        assets = previewWithdraw(shares);
+        assets = previewRedeem(shares);
         
-        // 1. Burn the RWA tokens from the user
-        // Note: For simplicity, we assume the user has approved the pool to burn or we use a burnFrom logic
-        // In AuraRwaToken, burn usually requires roles or owner.
-        // If we want the pool to burn on behalf of the user, the pool needs BRIDGE_ROLE or similar.
-        try IAuraRwaMintable(rwaToken).burn(msg.sender, shares) {
-            // Success
-        } catch {
-            revert("BURN_FAILED_CHECK_POOL_ROLES");
-        }
-
-        // 2. Burn Pool Shares
+        // 1. Burn Pool Shares
         _burn(msg.sender, shares);
 
-        // 3. Return Stablecoins
+        // 2. Return Stablecoins
         stablecoin.safeTransfer(receiver, assets);
         
-        emit PoolWithdrawn(msg.sender, receiver, shares, assets);
+        emit PoolRedeemed(msg.sender, shares, assets);
     }
 
     function _assertHealthyAndFresh() internal view {

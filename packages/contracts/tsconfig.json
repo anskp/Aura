@@ -9,14 +9,16 @@
     "resolveJsonModule": true,
     "types": [
       "node",
-      "mocha"
+      "mocha",
+      "hardhat"
     ]
   },
   "include": [
     "./hardhat.config.ts",
     "./tasks/**/*.ts",
     "./scripts/**/*.ts",
-    "./helpers/**/*.ts"
+    "./helpers/**/*.ts",
+    "./aura-hardhat/**/*.ts"
   ],
   "exclude": [
     "./test/**/*.ts"

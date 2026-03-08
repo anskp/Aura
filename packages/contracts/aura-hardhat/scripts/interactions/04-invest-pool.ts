@@ -23,13 +23,13 @@ async function main() {
     console.log("Approval transaction hash:", approveTx.hash);
     await approveTx.wait();
 
-    console.log(`Depositing ${ethers.formatEther(amount)} RWA tokens into the pool...`);
-    const depositTx = await pool.deposit(amount, deployer.address);
+    console.log(`Depositing ${ethers.formatEther(amount)} RWA tokens into the pool as collateral...`);
+    const depositTx = await pool.depositCollateral(amount);
     console.log("Deposit transaction hash:", depositTx.hash);
     await depositTx.wait();
 
-    const balance = await pool.balanceOf(deployer.address);
-    console.log("Investment successful! Pool share balance:", ethers.formatEther(balance));
+    const poolRwaBalance = await token.balanceOf(poolAddress);
+    console.log("Collateral deposit successful! Pool RWA balance:", ethers.formatEther(poolRwaBalance));
 }
 
 main().catch((error) => {

@@ -48,10 +48,10 @@ const InvestmentModal = ({ asset, isOpen, onClose, onSuccess }) => {
 
             // 3. Fetch Oracle Status
             const navOracleAddr = import.meta.env.VITE_NAV_ORACLE_ADDRESS;
-            const poolId = ethers.keccak256(ethers.toUtf8Bytes(asset.name));
-            const navOracleAbi = ["function latestNav(bytes32) view returns (uint256, uint256)"];
+            const poolId = ethers.encodeBytes32String(`POOL_${asset.id}`);
+            const navOracleAbi = ["function latestNav(bytes32) view returns (uint256, uint256, bytes32)"];
             const navOracle = new ethers.Contract(navOracleAddr, navOracleAbi, signer);
-            const [nav, timestamp] = await navOracle.latestNav(poolId);
+            const [nav, timestamp, reportId] = await navOracle.latestNav(poolId);
 
             const lastDate = new Date(Number(timestamp) * 1000);
             const isFresh = (Date.now() / 1000) - Number(timestamp) < 86400 * 2; // 2 days
@@ -103,13 +103,19 @@ const InvestmentModal = ({ asset, isOpen, onClose, onSuccess }) => {
 
             setStatus('DEPOSITING');
             const poolContract = new ethers.Contract(asset.address, contractData['LiquidityPool'].abi, signer);
-            const depositTx = await poolContract.deposit(amountWei, await signer.getAddress());
+
+            // Re-asserting health locally to provide better error messages if it fails gas estimation
+            console.log("[Blockchain] Sending Invest transaction...");
+            const depositTx = await poolContract.invest(amountWei, await signer.getAddress());
             const receipt = await depositTx.wait();
 
             setTxHash(receipt.hash);
-            await api.post('/marketplace/invest', {
-                assetId: asset.assetId,
-                amount: amount,
+
+            // Record investment in backend
+            await api.post(`/assets/invest/${asset.pool.id}`, {
+                investorAddress: await signer.getAddress(),
+                amountPaid: parseFloat(amount),
+                sharesReceived: parseFloat(amount), // AURAPS is 1:1 for now or based on preview
                 txHash: receipt.hash
             });
 
@@ -123,17 +129,24 @@ const InvestmentModal = ({ asset, isOpen, onClose, onSuccess }) => {
             console.error('[Error] Investment failed:', err);
 
             // Helpful Diagnostics for the User
-            if (err.data?.includes("0x3938508e") || err.message?.includes("0x3938508e")) {
+            const errorData = err.data || err.error?.data || "";
+            if (errorData.includes("0x3938508e") || err.message?.includes("0x3938508e")) {
                 setRevertHelp({
                     title: "Stale Oracle Data",
                     message: "The pool rejected this trade because the on-chain price (NAV) has not been updated recently.",
-                    solution: "An Admin must grant you the COORDINATOR_ROLE in the Admin Panel, then you can click 'Sync On-Chain Data' in your Dashboard."
+                    solution: "An Admin must go to the Dashboard and click 'Sync On-Chain Data' for this asset."
+                });
+            } else if (errorData.includes("0x0e5e0a05") || err.message?.includes("SystemPaused")) {
+                setRevertHelp({
+                    title: "Protocol Paused",
+                    message: "The Proof-of-Reserve system has paused this pool due to a detected imbalance or manual override.",
+                    solution: "Contact system administrator or check the asset's backing status."
                 });
             } else if (err.message.includes('CALL_EXCEPTION') || err.message.includes('revert')) {
                 setRevertHelp({
                     title: "Transaction Reverted",
-                    message: "The blockchain rejected this trade. This usually happens if the pool is paused or your balance is too low.",
-                    solution: "Check your USDC balance or ensure you are using the correct wallet."
+                    message: "The blockchain rejected this trade. Possible reasons: Insufficient USDC balance, missing KYC/Identity check, or contract mismatch.",
+                    solution: "Ensure you have enough USDC and your identity has been verified in the dashboard."
                 });
             } else {
                 alert('Investment failed: ' + (err.reason || err.message));

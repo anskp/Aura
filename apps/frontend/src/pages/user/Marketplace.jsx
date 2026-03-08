@@ -29,6 +29,7 @@ const Marketplace = () => {
     const handleInvestClick = (pool) => {
         setSelectedPool({
             ...pool.asset,
+            pool: pool,
             address: pool.address,
             stablecoinAddress: pool.stablecoinAddress,
             assetId: pool.asset.id
