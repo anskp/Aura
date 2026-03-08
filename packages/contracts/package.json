@@ -7,6 +7,8 @@
   },
   "scripts": {
     "dev": "node scripts/run-cre-dev.js",
+    "install:cre-workflows": "node scripts/install-cre-workflows.js",
+    "postinstall": "node scripts/install-cre-workflows.js",
     "compile": "hardhat compile",
     "test": "hardhat test",
     "test:unit": "hardhat test test/unit/**/*.spec.ts",
