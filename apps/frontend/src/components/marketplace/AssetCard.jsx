@@ -4,7 +4,10 @@ import { BrainCircuit } from 'lucide-react';
 const AssetCard = ({ asset, onInvest, isPreview = false, customAction = null }) => {
     // Generate some mock/fallback data for aesthetic purposes
     const aiConfidence = 90 + (asset.id ? asset.id % 9 : 5);
-    const mockImage = asset.image || 'https://images.unsplash.com/photo-1618044733300-94f4bf0082c3?auto=format&fit=crop&q=80&w=1000';
+    const API_URL = 'http://localhost:5000';
+    const mockImage = asset.coverImage
+        ? `${API_URL}${asset.coverImage}`
+        : (asset.image || 'https://images.unsplash.com/photo-1618044733300-94f4bf0082c3?auto=format&fit=crop&q=80&w=1000');
     const issuerName = asset.companyName || 'Aura Protocol';
     const issuerLogo = `https://ui-avatars.com/api/?name=${encodeURIComponent(issuerName)}&background=218d34&color=fff`;
 

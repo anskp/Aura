@@ -1,0 +1,18 @@
+-- AlterTable
+ALTER TABLE `asset` ADD COLUMN `accountRef` VARCHAR(191) NULL,
+    ADD COLUMN `attestExist` BOOLEAN NOT NULL DEFAULT false,
+    ADD COLUMN `attestNav` BOOLEAN NOT NULL DEFAULT false,
+    ADD COLUMN `attestOwnership` BOOLEAN NOT NULL DEFAULT false,
+    ADD COLUMN `coverImage` VARCHAR(191) NULL,
+    ADD COLUMN `custodianName` VARCHAR(191) NULL,
+    ADD COLUMN `custodyProvider` VARCHAR(191) NULL,
+    ADD COLUMN `documents` JSON NULL,
+    ADD COLUMN `gallery` JSON NULL,
+    ADD COLUMN `metadata` JSON NULL,
+    ADD COLUMN `regStatus` ENUM('REGULATED', 'NON_REGULATED') NOT NULL DEFAULT 'REGULATED',
+    ADD COLUMN `storageLocation` VARCHAR(191) NULL,
+    ADD COLUMN `summary` TEXT NULL,
+    ADD COLUMN `valuationCurrency` VARCHAR(191) NULL DEFAULT 'USD',
+    ADD COLUMN `valuationDate` DATETIME(3) NULL,
+    ADD COLUMN `valuationMethod` VARCHAR(191) NULL,
+    ADD COLUMN `vaultId` VARCHAR(191) NULL;

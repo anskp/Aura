@@ -18,6 +18,7 @@ app.use(express.json({
         req.rawBody = buf.toString();
     }
 }));
+app.use('/uploads', express.static('uploads'));
 
 // Request logging middleware
 app.use((req, res, next) => {

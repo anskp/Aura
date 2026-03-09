@@ -51,7 +51,7 @@ npx hardhat verify-contract --address 0x033804C03aA014aAb2Eb552BAAe9efeab2BeE5da
 ## How it works
 
 - The task reads constructor args from your `.env` automatically — no manual input needed.
-- If the contract is **already verified** → prints ✅ and exits cleanly.
+- If the contract is **already verified** -> prints SUCCESS and exits cleanly.
 - If the address is **unknown** → lists all registered contracts so you can see what's available.
 
 ## Requirements
