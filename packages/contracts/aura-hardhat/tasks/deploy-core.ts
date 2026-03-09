@@ -67,7 +67,9 @@ task("deploy-core", "Deploys the protocol core stack")
       await nav.getAddress(),
       await por.getAddress(),
       poolId,
-      assetId
+      assetId,
+      "AURWA Pool Share",
+      "PS-AURWA"
     );
     await pool.waitForDeployment();
 
@@ -130,6 +132,7 @@ task("deploy-core", "Deploys the protocol core stack")
     await (await coordinator.grantRole(automationRole, await automation.getAddress())).wait();
     await (await coordinator.grantRole(updaterRole, await oracleConsumer.getAddress())).wait();
     await (await token.grantRole(bridgeRole, await ccipSender.getAddress())).wait();
+    await (await token.grantRole(bridgeRole, await ccipReceiver.getAddress())).wait();
 
     const issuerRole = hre.ethers.keccak256(hre.ethers.toUtf8Bytes("ISSUER_ROLE"));
     await (await token.grantRole(issuerRole, await pool.getAddress())).wait();

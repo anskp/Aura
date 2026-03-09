@@ -74,6 +74,75 @@ class GeminiService {
             };
         }
     }
+
+    async chatWithAgent({ message, history = [], context = {} }, retries = 1) {
+        if (!message || !String(message).trim()) {
+            throw new Error("Message is required");
+        }
+
+        try {
+            if (!this.client) {
+                throw new Error("Gemini client not initialized. Check GEMINI_API_KEY.");
+            }
+
+            const systemPrompt = [
+                "You are Aura Agent, an assistant for the AURA RWA protocol.",
+                "Be concise, practical, and accurate.",
+                "Focus on helping users with onboarding, tokenization, marketplace investment, portfolio, wallet, NAV/PoR, and CCIP flows.",
+                "If uncertain, say what to check next instead of making up facts."
+            ].join(" ");
+
+            const historyText = Array.isArray(history)
+                ? history
+                    .slice(-8)
+                    .map((m) => `${m.role === 'assistant' ? 'Assistant' : 'User'}: ${m.content || ''}`)
+                    .join("\n")
+                : "";
+
+            const prompt = `
+${systemPrompt}
+
+User context:
+- userId: ${context.userId || "unknown"}
+- role: ${context.role || "unknown"}
+- email: ${context.email || "unknown"}
+
+Conversation so far:
+${historyText || "(none)"}
+
+Latest user message:
+${message}
+            `.trim();
+
+            const result = await this.client.models.generateContent({
+                model: "gemini-2.5-flash",
+                contents: [{ role: "user", parts: [{ text: prompt }] }]
+            });
+
+            let text = "";
+            if (result.candidates && result.candidates.length > 0) {
+                text = result.candidates[0].content.parts[0].text;
+            } else if (result.response && typeof result.response.text === 'function') {
+                text = result.response.text();
+            } else if (typeof result.text === 'function') {
+                text = result.text();
+            }
+
+            if (!text) {
+                throw new Error("Empty AI response");
+            }
+
+            return { reply: text.trim() };
+        } catch (error) {
+            console.error(`[Gemini Chat] Error:`, error.message);
+            if (retries > 0) {
+                return this.chatWithAgent({ message, history, context }, retries - 1);
+            }
+            return {
+                reply: `Agent is temporarily unavailable. ${error.message}`
+            };
+        }
+    }
 }
 
 module.exports = new GeminiService();

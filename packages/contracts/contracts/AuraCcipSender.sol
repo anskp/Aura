@@ -4,19 +4,19 @@ pragma solidity ^0.8.24;
 import {IRouterClient} from "@chainlink/contracts-ccip/contracts/interfaces/IRouterClient.sol";
 import {Client} from "@chainlink/contracts-ccip/contracts/libraries/Client.sol";
 import {LinkTokenInterface} from "@chainlink/contracts/src/v0.8/shared/interfaces/LinkTokenInterface.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 import {IAuraCcipBridge} from "./interfaces/IAuraCcipBridge.sol";
 
-contract AuraCcipSender is AccessControl, IAuraCcipBridge {
-    using SafeERC20 for IERC20;
+interface IAuraBridgeMintable {
+    function bridgeBurn(address from, uint256 amount) external;
+}
 
+contract AuraCcipSender is AccessControl, IAuraCcipBridge {
     bytes32 public constant BRIDGE_ADMIN_ROLE = keccak256("BRIDGE_ADMIN_ROLE");
 
     IRouterClient public router;
     LinkTokenInterface public linkToken;
-    IERC20 public rwaToken;
+    IAuraBridgeMintable public rwaToken;
     uint64 public fujiChainSelector;
     address public destinationReceiver;
     bool public payFeesInLink;
@@ -25,7 +25,7 @@ contract AuraCcipSender is AccessControl, IAuraCcipBridge {
         address admin,
         IRouterClient router_,
         LinkTokenInterface linkToken_,
-        IERC20 rwaToken_,
+        IAuraBridgeMintable rwaToken_,
         uint64 fujiChainSelector_,
         address destinationReceiver_
     ) {
@@ -41,7 +41,7 @@ contract AuraCcipSender is AccessControl, IAuraCcipBridge {
     function setConfig(
         IRouterClient router_,
         LinkTokenInterface linkToken_,
-        IERC20 rwaToken_,
+        IAuraBridgeMintable rwaToken_,
         uint64 fujiChainSelector_,
         address destinationReceiver_,
         bool payFeesInLink_
@@ -55,17 +55,14 @@ contract AuraCcipSender is AccessControl, IAuraCcipBridge {
     }
 
     function bridgeToFuji(address receiver, uint256 amount, bytes calldata data) external returns (bytes32 messageId) {
-        rwaToken.safeTransferFrom(msg.sender, address(this), amount);
-        rwaToken.approve(address(router), amount);
+        rwaToken.bridgeBurn(msg.sender, amount);
 
-        Client.EVMTokenAmount[] memory tokenAmounts = new Client.EVMTokenAmount[](1);
-        tokenAmounts[0] = Client.EVMTokenAmount({token: address(rwaToken), amount: amount});
-
-        bytes memory payload = abi.encode(receiver, data);
+        // Message-only CCIP path: amount is encoded in payload and minted on destination chain.
+        bytes memory payload = abi.encode(receiver, amount, data);
         Client.EVM2AnyMessage memory message = Client.EVM2AnyMessage({
             receiver: abi.encode(destinationReceiver),
             data: payload,
-            tokenAmounts: tokenAmounts,
+            tokenAmounts: new Client.EVMTokenAmount[](0),
             extraArgs: Client._argsToBytes(Client.EVMExtraArgsV1({gasLimit: 350_000})),
             feeToken: payFeesInLink ? address(linkToken) : address(0)
         });

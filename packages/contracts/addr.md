@@ -1,22 +1,29 @@
-# Deployed Contract Addresses (Local Hardhat Network)
-*Note: These addresses are generated on a per-deployment basis on the local node.*
+# Deployed Contract Addresses (Sepolia/Fuji Config from `.env`)
 
 | Contract Name | Address |
 | --- | --- |
-| **Identity Registry** | `0x70e0bA845a1A0F2DA3359C97E0285013525FFC49` |
-| **Compliance Registry** | `0x4826533B4897376654Bb4d4AD88B7faFD0C98528` |
-| **Aura RWA Token** | `0x99bbA657f2BbC93c02D617f8bA121cB8Fc104Acf` |
-| **NAV Oracle** | `0x0E801D84Fa97b50751Dbf25036d067dCf18858bF` |
-| **Proof of Reserve** | `0x8f86403A4DE0BB5791fa46B8e795C547942fE4Cf` |
-| **Liquidity Pool** | `0x9d4454B023096f34B160D6B654540c56A1F81688` |
-| **Mock Oracle Provider** | `0x5eb3Bc0a489C5A8288765d2336659EbCA68FCd00` |
-| **Oracle Update Coordinator** | `0x36C02dA8a0983159322a80FFE9F24b1acfF8B570` |
-| **Automation Registry** | `0x809d550fca64d94Bd9F66E60752A544199cfAC3D` |
-| **Aura CCIP Sender** | `0x4c5859f0F772848b2D91F1D83E2Fe57935348029` |
-| **Aura CCIP Receiver** | `0x1291Be112d480055DaFd8a610b7d1e203891C274` |
-| **Oracle Consumer** | `0x5f3f1dBD7B74C6B46e8c44f98792A1dAf8d69154` |
-| **CCIP Consumer** | `0xb7278A61aa25c888815aFC32Ad3cC52fF24fE575` |
-| **Stablecoin (Mock USDC)** | `0x998abeb3E57409262aE5b751f60747921B33613E` |
+| **Identity Registry** | `0xB96793B4c84bcECa2284D3e171ba502E350950d0` |
+| **Compliance Registry** | `0xA11F4f99C9491532d5c3ade6C2146184a7Ba2F5D` |
+| **Aura RWA Token** | `0x6e1D61bfc33C82D0D21D7253685602315462F838` |
+| **NAV Oracle** | `0x98f376791459fF7ddb7bBA132B638408C6a7dF2A` |
+| **Proof of Reserve** | `0x8E35fD0FD778E0E476C0925166Bd42056EDc38F0` |
+| **Liquidity Pool** | `0x67AdCcFAF369be2CB9662d06B6b94489eB628C69` |
+| **Mock Oracle Provider** | `0x7CD1F1d2629E5ad9D04973b218e0148183fB2007` |
+| **Oracle Update Coordinator** | `0x7Be1C4752E9De8A246Ae8229F3c617fc05A6E1e3` |
+| **Automation Registry** | `0x22AeD8249DA3366778D755468cC3598149edE984` |
+| **Aura CCIP Sender** | `0x127B78815Fe1b40b29934A46EBf21eDe81c7938A` |
+| **Aura CCIP Receiver** | `0xfb75c8621381C56b687a3483E5854CCbB089A958` |
+| **Oracle Consumer** | `0x4E09C2bc212F0CEC02563223f796342317B40409` |
+| **CCIP Consumer** | `0x5C2c510EBd7AC25B8441E61f9d78eA20097B9f1b` |
+| **Stablecoin (Mock USDC)** | `0x2c05844b9c7A74bb0797B30DB4a1FAaF2E62462C` |
+
+### Chainlink Routers/Tokens
+- **Sepolia Router**: `0x0bF39CCC6752077e687f0D00e00780496E733A59`
+- **Sepolia LINK**: `0x779877A7B0D9E8603169DdbD7836e478b4624789`
+- **Sepolia Chain Selector**: `16015286601757825753`
+- **Fuji Router**: `0xF694E193200268f9a4868e4Aa017A0118C9a8177`
+- **Fuji LINK**: `0x0b9d5D9136855f6FEc3c0993feE6E9CE8a297846`
+- **Fuji Chain Selector**: `14767482510784806043`
 
 ### IDs
 - **Pool ID**: `0x415552415f504f4f4c0000000000000000000000000000000000000000000000`

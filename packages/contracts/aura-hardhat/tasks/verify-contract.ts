@@ -25,6 +25,7 @@ function getContractMap() {
     const nav = e.NAV_ORACLE ?? "";
     const por = e.POR_ORACLE ?? "";
     const pool = e.LIQUIDITY_POOL ?? "";
+    const stablecoin = e.STABLECOIN ?? "";
     const mock = e.MOCK_PROVIDER ?? "";
     const coord = e.COORDINATOR ?? "";
     const automation = e.AUTOMATION_REGISTRY ?? "";
@@ -45,7 +46,7 @@ function getContractMap() {
         [token.toLowerCase(), { contract: "contracts/AuraRwaToken.sol:AuraRwaToken", args: ["AURA RWA Token", "AURWA", admin, compliance] }],
         [nav.toLowerCase(), { contract: "contracts/NavOracle.sol:NavOracle", args: [admin] }],
         [por.toLowerCase(), { contract: "contracts/ProofOfReserve.sol:ProofOfReserve", args: [admin, token] }],
-        [pool.toLowerCase(), { contract: "contracts/LiquidityPool.sol:LiquidityPool", args: [admin, token, nav, por, poolId, assetId] }],
+        [pool.toLowerCase(), { contract: "contracts/LiquidityPool.sol:LiquidityPool", args: [admin, stablecoin, token, nav, por, poolId, assetId, "AURWA Pool Share", "PS-AURWA"] }],
         [mock.toLowerCase(), { contract: "contracts/mocks/MockOracleProvider.sol:MockOracleProvider", args: ["1000000000000000000", "1000000000000000000000000"] }],
         [coord.toLowerCase(), { contract: "contracts/OracleUpdateCoordinator.sol:OracleUpdateCoordinator", args: [admin, nav, por, mock, poolId, assetId] }],
         [automation.toLowerCase(), { contract: "contracts/AutomationFacade.sol:AutomationFacade", args: [admin, coord, "86400"] }],

@@ -29,7 +29,17 @@ describe("AURA local integration", function () {
     ).deploy(admin.address, await coordinator.getAddress(), 24 * 60 * 60);
     const pool = await (
       await ethers.getContractFactory("LiquidityPool")
-    ).deploy(admin.address, await token.getAddress(), await nav.getAddress(), await por.getAddress(), poolId, assetId);
+    ).deploy(
+      admin.address,
+      await token.getAddress(),
+      await token.getAddress(),
+      await nav.getAddress(),
+      await por.getAddress(),
+      poolId,
+      assetId,
+      "AURWA Pool Share",
+      "PS-AURWA"
+    );
 
     const coordinatorRole = ethers.keccak256(ethers.toUtf8Bytes("COORDINATOR_ROLE"));
     const automationRole = ethers.keccak256(ethers.toUtf8Bytes("AUTOMATION_ROLE"));
@@ -61,4 +71,3 @@ describe("AURA local integration", function () {
     expect(await token.balanceOf(investor.address)).to.be.gte(assetsOut);
   });
 });
-

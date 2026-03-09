@@ -8,7 +8,7 @@ const LandingPage = () => {
 
     const handleLaunchApp = () => {
         if (user) {
-            navigate('/dashboard');
+            navigate(user.role === 'ADMIN' ? '/admin' : '/dashboard');
         } else {
             navigate('/login');
         }

@@ -1,6 +1,5 @@
 import React from 'react';
-import { motion } from 'framer-motion';
-import { BrainCircuit, BadgeCheck } from 'lucide-react';
+import { BrainCircuit } from 'lucide-react';
 
 const AssetCard = ({ asset, onInvest, isPreview = false, customAction = null }) => {
     // Generate some mock/fallback data for aesthetic purposes
@@ -26,12 +25,7 @@ const AssetCard = ({ asset, onInvest, isPreview = false, customAction = null }) 
     }
 
     return (
-        <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3 }}
-            className="group relative bg-white dark:bg-slate-900 rounded-2xl overflow-hidden shadow-sm hover:shadow-2xl transition-all duration-500 h-[420px] border border-slate-200 dark:border-slate-800"
-        >
+        <div className="group relative bg-white dark:bg-slate-900 rounded-2xl overflow-hidden shadow-sm hover:shadow-2xl transition-all duration-500 h-[420px] border border-slate-200 dark:border-slate-800">
             {/* Sliding Container */}
             <div className="absolute inset-0 flex w-[200%] transition-transform duration-500 ease-in-out -translate-x-0 group-hover:-translate-x-1/2">
 
@@ -161,7 +155,7 @@ const AssetCard = ({ asset, onInvest, isPreview = false, customAction = null }) 
                     </div>
                 </div>
             </div>
-        </motion.div>
+        </div>
     );
 };
 

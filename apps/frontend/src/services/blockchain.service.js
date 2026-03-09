@@ -57,7 +57,7 @@ export const BlockchainService = {
                             },
                         ],
                     });
-                } catch (addError) {
+                } catch {
                     throw new Error("Failed to add Sepolia network to your wallet.");
                 }
             } else if (switchError.code === 4001) {

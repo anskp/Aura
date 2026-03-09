@@ -84,12 +84,13 @@ const Layout = ({ children }) => {
   );
 };
 
-const ProtectedRoute = ({ children, adminOnly = false }) => {
+const ProtectedRoute = ({ children, adminOnly = false, userOnly = false }) => {
   const { user, loading } = useAuth();
 
   if (loading) return <div className="flex items-center justify-center h-screen font-bold text-primary">Loading...</div>;
   if (!user) return <Navigate to="/login" />;
   if (adminOnly && user.role !== 'ADMIN') return <Navigate to="/dashboard" />;
+  if (userOnly && user.role === 'ADMIN') return <Navigate to="/admin" />;
 
   return <Layout>{children}</Layout>;
 };
@@ -105,14 +106,14 @@ const AppRoutes = () => {
         path="/dashboard"
         element={
           <ProtectedRoute>
-            <UserDashboard />
+            <AdminOrUserDashboard />
           </ProtectedRoute>
         }
       />
       <Route
         path="/portfolio"
         element={
-          <ProtectedRoute>
+          <ProtectedRoute userOnly={true}>
             <PortfolioWallet />
           </ProtectedRoute>
         }
@@ -140,7 +141,7 @@ const AppRoutes = () => {
       <Route
         path="/assets"
         element={
-          <ProtectedRoute>
+          <ProtectedRoute userOnly={true}>
             <AssetDashboard />
           </ProtectedRoute>
         }
@@ -148,7 +149,7 @@ const AppRoutes = () => {
       <Route
         path="/assets/onboard"
         element={
-          <ProtectedRoute>
+          <ProtectedRoute userOnly={true}>
             <AssetOnboardingPage />
           </ProtectedRoute>
         }
@@ -156,7 +157,7 @@ const AppRoutes = () => {
       <Route
         path="/marketplace"
         element={
-          <ProtectedRoute>
+          <ProtectedRoute userOnly={true}>
             <Marketplace />
           </ProtectedRoute>
         }
@@ -175,5 +176,11 @@ function App() {
     </AuthProvider>
   );
 }
+
+const AdminOrUserDashboard = () => {
+  const { user } = useAuth();
+  if (user?.role === 'ADMIN') return <Navigate to="/admin" />;
+  return <UserDashboard />;
+};
 
 export default App;

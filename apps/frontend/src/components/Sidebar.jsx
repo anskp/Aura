@@ -1,27 +1,30 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import AgentChatModal from './AgentChatModal';
 
 const Sidebar = () => {
     const { user, logout } = useAuth();
     const navigate = useNavigate();
+    const [isAgentOpen, setIsAgentOpen] = useState(false);
 
     const handleLogout = () => {
         logout();
         navigate('/login');
     };
 
-    const navItems = [
-        { label: 'Overview', icon: 'pie_chart', path: '/dashboard' },
-        { label: 'Portfolio & Wallet', icon: 'account_balance_wallet', path: '/portfolio' },
-        { label: 'Marketplace', icon: 'storefront', path: '/marketplace' },
-        { label: 'Assets', icon: 'category', path: '/assets' },
-        { label: 'Settings', icon: 'settings', path: '/settings' },
-    ];
-
-    if (user?.role === 'ADMIN') {
-        navItems.push({ label: 'Admin', icon: 'shield_person', path: '/admin' });
-    }
+    const navItems = user?.role === 'ADMIN'
+        ? [
+            { label: 'Admin', icon: 'shield_person', path: '/admin' },
+            { label: 'Settings', icon: 'settings', path: '/settings' }
+        ]
+        : [
+            { label: 'Overview', icon: 'pie_chart', path: '/dashboard' },
+            { label: 'Portfolio & Wallet', icon: 'account_balance_wallet', path: '/portfolio' },
+            { label: 'Marketplace', icon: 'storefront', path: '/marketplace' },
+            { label: 'Assets', icon: 'category', path: '/assets' },
+            { label: 'Settings', icon: 'settings', path: '/settings' }
+        ];
 
     return (
         <aside className="w-72 bg-white dark:bg-background-dark border-r border-slate-200 dark:border-slate-800 flex flex-col justify-between p-6 h-screen sticky top-0">
@@ -64,6 +67,14 @@ const Sidebar = () => {
                     <p className="text-xs text-slate-500 leading-relaxed m-0">System monitoring assets globally. Accuracy: 99.4%</p>
                 </div>
 
+                <button
+                    onClick={() => setIsAgentOpen(true)}
+                    className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-900 text-white border-none cursor-pointer text-sm font-semibold"
+                >
+                    <span className="material-symbols-outlined text-base">smart_toy</span>
+                    Agent Chat Mode
+                </button>
+
                 <div className="flex items-center gap-3 px-2">
                     <div className="h-10 w-10 rounded-full bg-slate-200 overflow-hidden border border-slate-200">
                         <img
@@ -84,6 +95,7 @@ const Sidebar = () => {
                     </button>
                 </div>
             </div>
+            <AgentChatModal isOpen={isAgentOpen} onClose={() => setIsAgentOpen(false)} />
         </aside>
     );
 };

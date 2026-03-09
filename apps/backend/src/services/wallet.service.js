@@ -1,11 +1,19 @@
 const prisma = require('../config/prisma');
 const userService = require('./user.service');
 
+const canRelinkWallet = () => {
+    // Safe default for local/dev workflows; disable in production unless explicitly enabled.
+    if (process.env.ALLOW_WALLET_RELINK === 'true') return true;
+    return process.env.NODE_ENV !== 'production';
+};
+
 const addWallet = async (userId, address, chain) => {
+    const normalizedAddress = address.toLowerCase();
+
     // Check if wallet already exists for this user and chain
     const existingWallet = await prisma.wallet.findFirst({
         where: {
-            address: address.toLowerCase(),
+            address: normalizedAddress,
             chain
         }
     });
@@ -16,13 +24,25 @@ const addWallet = async (userId, address, chain) => {
             await userService.syncUserOnChain(userId);
             return existingWallet;
         }
-        throw new Error('Wallet already connected to another account');
+
+        if (!canRelinkWallet()) {
+            throw new Error('Wallet already connected to another account');
+        }
+
+        // Local/dev recovery path: move wallet ownership to current user.
+        const relinkedWallet = await prisma.wallet.update({
+            where: { id: existingWallet.id },
+            data: { userId }
+        });
+
+        await userService.syncUserOnChain(userId);
+        return relinkedWallet;
     }
 
     const wallet = await prisma.wallet.create({
         data: {
             userId,
-            address: address.toLowerCase(),
+            address: normalizedAddress,
             chain
         }
     });

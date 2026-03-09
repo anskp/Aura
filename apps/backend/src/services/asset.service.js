@@ -16,7 +16,8 @@ const onboardAsset = async (userId, assetData) => {
             aiPricing: aiValuation.recommendedValuation,
             aiReasoning: aiValuation.reasoning,
             ownerId: userId,
-            status: 'PENDING'
+            status: 'PENDING',
+            updatedAt: new Date()
         }
     });
 
@@ -45,7 +46,7 @@ const getUserAssets = async (userId) => {
 const getAllAssets = async () => {
     const assets = await prisma.asset.findMany({
         include: {
-            owner: {
+            user: {
                 select: {
                     email: true,
                     wallets: true
@@ -57,6 +58,7 @@ const getAllAssets = async () => {
     });
     return assets.map(asset => ({
         ...asset,
+        owner: asset.user,
         valuation: Number(asset.valuation),
         aiPricing: Number(asset.aiPricing),
         nav: asset.nav ? Number(asset.nav) : null,
@@ -143,6 +145,14 @@ const finalizeTokenization = async (assetId, tokenAddress, txHash, userAddress) 
     // If user deploys, they are owner/admin. So they must call setNavOracle.
 
     await blockchainService.recordTransaction(assetId, 'DEPLOY_TOKEN', txHash, userAddress);
+
+    // Prime NAV/PoR as soon as token exists so pools won't start in unhealthy state.
+    try {
+        await syncAssetOracle(assetId);
+    } catch (err) {
+        console.error(`[Asset Service] Initial oracle sync after tokenization failed for asset ${assetId}:`, err.message);
+    }
+
     return token;
 };
 
@@ -153,8 +163,17 @@ const prepareListing = async (assetId, userAddress) => {
 
     const poolId = ethers.encodeBytes32String(`POOL_${asset.id}`);
     const assetIdBytes32 = ethers.encodeBytes32String(`ASSET_${asset.id}`);
+    const shareName = `${asset.symbol || asset.name} Pool Share`;
+    const shareSymbol = `PS-${(asset.symbol || 'AURA').slice(0, 8).toUpperCase()}`;
 
-    return blockchainService.preparePoolDeployment(userAddress, asset.tokenAddress, poolId, assetIdBytes32);
+    return blockchainService.preparePoolDeployment(
+        userAddress,
+        asset.tokenAddress,
+        poolId,
+        assetIdBytes32,
+        shareName,
+        shareSymbol
+    );
 };
 
 const finalizeListing = async (assetId, poolAddress, txHash, userAddress) => {
@@ -176,6 +195,21 @@ const finalizeListing = async (assetId, poolAddress, txHash, userAddress) => {
     });
 
     await blockchainService.recordTransaction(assetId, 'DEPLOY_POOL', txHash, userAddress);
+
+    // Compliance module checks transfer recipients too; every pool contract must be whitelisted.
+    try {
+        await blockchainService.registerIdentity(poolAddress);
+    } catch (err) {
+        console.error(`[Asset Service] Pool identity registration failed for ${poolAddress}:`, err.message);
+    }
+
+    // Ensure newly listed pools are investable immediately.
+    try {
+        await syncAssetOracle(assetId);
+    } catch (err) {
+        console.error(`[Asset Service] Oracle sync after listing failed for asset ${assetId}:`, err.message);
+    }
+
     return pool;
 };
 
@@ -231,6 +265,50 @@ const getMarketplacePools = async () => {
             nav: Number(pool.asset.nav)
         }
     }));
+};
+
+const recordRedemption = async (poolId, redemptionData) => {
+    console.log(`[Asset Service] Recording redemption for pool ${poolId}`);
+
+    const { investorAddress, amountReturned, sharesBurned, txHash } = redemptionData;
+    const pool = await prisma.pool.findUnique({
+        where: { id: parseInt(poolId) },
+        select: { assetId: true }
+    });
+
+    await prisma.pool.update({
+        where: { id: parseInt(poolId) },
+        data: {
+            totalLiquidity: { decrement: amountReturned },
+            totalShares: { decrement: sharesBurned }
+        }
+    });
+
+    await blockchainService.recordTransaction(pool?.assetId, 'REDEEM', txHash, investorAddress);
+
+    return {
+        poolId: parseInt(poolId),
+        investorAddress,
+        amountReturned,
+        sharesBurned,
+        txHash
+    };
+};
+
+const requestBridge = async ({ receiver, amount, data }) => {
+    if (!receiver || !amount) {
+        throw new Error("receiver and amount are required");
+    }
+
+    const result = await blockchainService.triggerCreCcipTransfer(receiver, amount, data || "0x");
+    return {
+        status: 'SUBMITTED',
+        workflowResult: result
+    };
+};
+
+const prepareBridgeSender = async ({ tokenAddress, senderAddress }) => {
+    return await blockchainService.ensureCcipSenderToken(tokenAddress, senderAddress);
 };
 
 const syncAssetOracle = async (assetId) => {
@@ -289,6 +367,9 @@ module.exports = {
     prepareListing,
     finalizeListing,
     recordInvestment,
+    recordRedemption,
+    requestBridge,
+    prepareBridgeSender,
     getMarketplacePools,
     syncAssetOracle,
     grantGovernanceRole,

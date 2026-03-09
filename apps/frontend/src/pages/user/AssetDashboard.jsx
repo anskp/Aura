@@ -3,9 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
 import { Plus, Box, Calendar, MapPin, Tag, Activity, Rocket, List, Loader2, AlertCircle } from 'lucide-react';
 import { BlockchainService } from '../../services/blockchain.service';
-import { useAuth } from '../../context/AuthContext';
 import { ethers } from 'ethers';
 import AssetCard from '../../components/marketplace/AssetCard';
+import { syncActiveWalletToBackend } from '../../utils/walletSync';
 
 const AssetDashboard = () => {
     const [assets, setAssets] = useState([]);
@@ -13,7 +13,6 @@ const AssetDashboard = () => {
     const [deployingId, setDeployingId] = useState(null);
     const [staleMap, setStaleMap] = useState({}); // assetId -> boolean (isStale)
     const navigate = useNavigate();
-    const { user } = useAuth();
 
     useEffect(() => {
         fetchAssets();
@@ -37,7 +36,7 @@ const AssetDashboard = () => {
                 if (asset.status === 'LISTED') {
                     try {
                         const poolId = ethers.encodeBytes32String(`POOL_${asset.id}`);
-                        const [nav, timestamp] = await navOracle.latestNav(poolId);
+                        const [, timestamp] = await navOracle.latestNav(poolId);
 
                         const now = Math.floor(Date.now() / 1000);
                         const isStale = (now - Number(timestamp)) > 86400; // 24 hours
@@ -67,7 +66,9 @@ const AssetDashboard = () => {
 
     const handleDeployToken = async (asset) => {
         console.log(`[User Action] Initiating tokenization for asset: ${asset.name}`);
-        const userWallet = user.wallets?.[0]?.address;
+        const signer = await BlockchainService.getSigner();
+        const synced = await syncActiveWalletToBackend(signer);
+        const userWallet = synced?.address || await signer.getAddress();
         if (!userWallet) {
             alert("Please connect your wallet first.");
             return;
@@ -79,7 +80,6 @@ const AssetDashboard = () => {
             const prep = await api.post(`/assets/prepare-tokenize/${asset.id}`, { userAddress: userWallet });
             const { abi, bytecode, args } = prep.data;
 
-            const signer = await BlockchainService.getSigner();
             const factory = new ethers.ContractFactory(abi, bytecode, signer);
 
             console.log("[Wallet] Signing deployment transaction...");
@@ -93,6 +93,12 @@ const AssetDashboard = () => {
             const poolId = ethers.encodeBytes32String(`POOL_${asset.id}`);
             const linkTx = await contract.setNavOracle(navOracleAddr, poolId);
             await linkTx.wait();
+            const ccipSenderAddress = import.meta.env.VITE_CCIP_SENDER_ADDRESS;
+            if (ccipSenderAddress) {
+                const bridgeRole = ethers.id("BRIDGE_ROLE");
+                const grantTx = await contract.grantRole(bridgeRole, ccipSenderAddress);
+                await grantTx.wait();
+            }
 
             console.log(`[Blockchain] Token deployed and linked at ${tokenAddress}. Finalizing...`);
             await api.post(`/assets/finalize-tokenize/${asset.id}`, {
@@ -112,7 +118,9 @@ const AssetDashboard = () => {
     };
 
     const handleListInPool = async (asset) => {
-        const userWallet = user.wallets?.[0]?.address;
+        const signer = await BlockchainService.getSigner();
+        const synced = await syncActiveWalletToBackend(signer);
+        const userWallet = synced?.address || await signer.getAddress();
         if (!userWallet) {
             alert("Please connect your wallet first.");
             return;
@@ -124,7 +132,6 @@ const AssetDashboard = () => {
             const prep = await api.post(`/assets/prepare-list/${asset.id}`, { userAddress: userWallet });
             const { abi, bytecode, args } = prep.data;
 
-            const signer = await BlockchainService.getSigner();
             const factory = new ethers.ContractFactory(abi, bytecode, signer);
 
             console.log("[Wallet] Signing Pool deployment transaction...");
@@ -132,6 +139,17 @@ const AssetDashboard = () => {
             await poolContract.waitForDeployment();
             const poolAddress = await poolContract.getAddress();
             const deployTxHash = poolContract.deploymentTransaction().hash;
+            const bridgeRole = ethers.id("BRIDGE_ROLE");
+            const ccipSenderAddress = import.meta.env.VITE_CCIP_SENDER_ADDRESS;
+            const ccipReceiverAddress = import.meta.env.VITE_CCIP_RECEIVER_ADDRESS;
+            if (ccipSenderAddress) {
+                const grantSenderTx = await poolContract.grantRole(bridgeRole, ccipSenderAddress);
+                await grantSenderTx.wait();
+            }
+            if (ccipReceiverAddress) {
+                const grantReceiverTx = await poolContract.grantRole(bridgeRole, ccipReceiverAddress);
+                await grantReceiverTx.wait();
+            }
 
             console.log(`[Blockchain] Pool deployed at ${poolAddress}. Finalizing listing...`);
             await api.post(`/assets/finalize-list/${asset.id}`, {

@@ -7,6 +7,8 @@ const userRoutes = require('./routes/user.routes');
 const assetRoutes = require('./routes/asset.routes');
 const kycRoutes = require('./routes/kyc.routes');
 const marketplaceRoutes = require('./routes/marketplace.routes');
+const portfolioRoutes = require('./routes/portfolio.routes');
+const aiRoutes = require('./routes/ai.routes');
 
 const app = express();
 
@@ -37,5 +39,7 @@ app.use('/users', userRoutes);
 app.use('/assets', assetRoutes);
 app.use('/kyc', kycRoutes);
 app.use('/marketplace', marketplaceRoutes);
+app.use('/portfolio', portfolioRoutes);
+app.use('/ai', aiRoutes);
 
 module.exports = app;

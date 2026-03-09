@@ -19,6 +19,7 @@ contract LiquidityPool is ERC20, AccessControl, ILiquidityPool {
     using SafeERC20 for IERC20;
 
     bytes32 public constant POOL_ADMIN_ROLE = keccak256("POOL_ADMIN_ROLE");
+    bytes32 public constant BRIDGE_ROLE = keccak256("BRIDGE_ROLE");
     uint256 public constant NAV_SCALE = 1e18;
 
     IERC20 public immutable stablecoin;
@@ -40,13 +41,16 @@ contract LiquidityPool is ERC20, AccessControl, ILiquidityPool {
         INavOracle navOracle_,
         IProofOfReserve proofOfReserve_,
         bytes32 poolId_,
-        bytes32 assetId_
-    ) ERC20("AURA Pool Share", "AURAPS") {
+        bytes32 assetId_,
+        string memory shareName_,
+        string memory shareSymbol_
+    ) ERC20(shareName_, shareSymbol_) {
         if (address(stablecoin_) == address(0) || rwaToken_ == address(0) || address(navOracle_) == address(0) || address(proofOfReserve_) == address(0)) {
             revert ZeroAddress();
         }
         _grantRole(DEFAULT_ADMIN_ROLE, admin);
         _grantRole(POOL_ADMIN_ROLE, admin);
+        _grantRole(BRIDGE_ROLE, admin);
         stablecoin = stablecoin_;
         rwaToken = rwaToken_;
         navOracle = navOracle_;
@@ -151,6 +155,16 @@ contract LiquidityPool is ERC20, AccessControl, ILiquidityPool {
         emit PoolRedeemed(msg.sender, shares, assets);
     }
 
+    function bridgeMint(address to, uint256 amount) external onlyRole(BRIDGE_ROLE) {
+        _mint(to, amount);
+        emit BridgeMinted(to, amount);
+    }
+
+    function bridgeBurn(address from, uint256 amount) external onlyRole(BRIDGE_ROLE) {
+        _burn(from, amount);
+        emit BridgeBurned(from, amount);
+    }
+
     function _assertHealthyAndFresh() internal view {
         if (proofOfReserve.isPaused() || !proofOfReserve.isSystemHealthy(assetId)) revert SystemPaused();
         (, uint256 timestamp, ) = navOracle.latestNav(poolId);
@@ -162,4 +176,3 @@ contract LiquidityPool is ERC20, AccessControl, ILiquidityPool {
         require(nav > 0, "NAV_ZERO");
     }
 }
-

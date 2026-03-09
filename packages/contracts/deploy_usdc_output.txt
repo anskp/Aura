@@ -1,8 +1,0 @@
-[dotenv@17.3.1] injecting env (26) from .env -- tip: ≡ƒ¢á∩╕Å  run anywhere with `dotenvx run -- yourcommand`
-[dotenv@17.3.1] injecting env (0) from .env -- tip: ΓÜí∩╕Å secrets for agents: https://dotenvx.com/as2
-Compiled 43 Solidity files successfully (evm target: paris).
-[dotenv@17.3.1] injecting env (0) from .env -- tip: ΓÜÖ∩╕Å  specify custom .env file path with { path: '/custom/path/.env' }
-[dotenv@17.3.1] injecting env (0) from .env -- tip: ΓÜí∩╕Å secrets for agents: https://dotenvx.com/as2
-Deploying MockUSDC to Sepolia...
-MockUSDC deployed to: 0x015dd8697CdA6091C4071343daCFCFFE90e738B6
-Transaction Hash: 0x7724cee038db2d3f33727c6db3567ba679fc4fc72590d36a8be004e8f2f4e552

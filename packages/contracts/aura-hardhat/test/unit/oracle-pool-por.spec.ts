@@ -25,7 +25,17 @@ describe("Oracle coordinator + PoR + pool safety", function () {
     ).deploy(admin.address, await nav.getAddress(), await por.getAddress(), await mock.getAddress(), poolId, assetId);
     const pool = await (
       await ethers.getContractFactory("LiquidityPool")
-    ).deploy(admin.address, await token.getAddress(), await nav.getAddress(), await por.getAddress(), poolId, assetId);
+    ).deploy(
+      admin.address,
+      await token.getAddress(),
+      await token.getAddress(),
+      await nav.getAddress(),
+      await por.getAddress(),
+      poolId,
+      assetId,
+      "AURWA Pool Share",
+      "PS-AURWA"
+    );
 
     const coordinatorRole = ethers.keccak256(ethers.toUtf8Bytes("COORDINATOR_ROLE"));
     await nav.grantRole(coordinatorRole, await coordinator.getAddress());

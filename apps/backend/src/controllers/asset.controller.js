@@ -108,10 +108,44 @@ const recordInvestment = async (req, res) => {
     try {
         const { poolId } = req.params;
         console.log(`[API] Recording investment for pool: ${poolId}`);
-        const investment = await assetService.recordInvestment(parseInt(poolId), req.body);
+        const investment = await assetService.recordInvestment(parseInt(poolId), req.body, req.user.id);
         res.status(200).json(investment);
     } catch (error) {
         console.error(`[API Error] recordInvestment: ${error.message}`);
+        res.status(400).json({ error: error.message });
+    }
+};
+
+const recordRedemption = async (req, res) => {
+    try {
+        const { poolId } = req.params;
+        console.log(`[API] Recording redemption for pool: ${poolId}`);
+        const redemption = await assetService.recordRedemption(parseInt(poolId), req.body);
+        res.status(200).json(redemption);
+    } catch (error) {
+        console.error(`[API Error] recordRedemption: ${error.message}`);
+        res.status(400).json({ error: error.message });
+    }
+};
+
+const requestBridge = async (req, res) => {
+    try {
+        const { receiver, amount, data } = req.body;
+        const result = await assetService.requestBridge({ receiver, amount, data });
+        res.status(200).json(result);
+    } catch (error) {
+        console.error(`[API Error] requestBridge: ${error.message}`);
+        res.status(400).json({ error: error.message });
+    }
+};
+
+const prepareBridge = async (req, res) => {
+    try {
+        const { tokenAddress, senderAddress } = req.body;
+        const result = await assetService.prepareBridgeSender({ tokenAddress, senderAddress });
+        res.status(200).json(result);
+    } catch (error) {
+        console.error(`[API Error] prepareBridge: ${error.message}`);
         res.status(400).json({ error: error.message });
     }
 };
@@ -187,6 +221,9 @@ module.exports = {
     prepareList,
     finalizeList,
     recordInvestment,
+    recordRedemption,
+    prepareBridge,
+    requestBridge,
     getMarketplacePools,
     syncOracle,
     grantRole,

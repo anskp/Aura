@@ -48,16 +48,21 @@ const syncUserOnChain = async (userId) => {
 };
 
 const getAllUsers = async () => {
-    return await prisma.user.findMany({
+    const users = await prisma.user.findMany({
         select: {
             id: true,
             email: true,
             role: true,
             kycStatus: true,
             wallets: true,
-            assets: true
+            asset: true
         }
     });
+
+    return users.map((user) => ({
+        ...user,
+        assets: user.asset
+    }));
 };
 
 module.exports = {

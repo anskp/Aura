@@ -15,6 +15,9 @@ router.post('/prepare-list/:id', protect, assetController.prepareList);
 router.post('/finalize-list/:id', protect, assetController.finalizeList);
 
 router.post('/invest/:poolId', protect, assetController.recordInvestment);
+router.post('/redeem/:poolId', protect, assetController.recordRedemption);
+router.post('/bridge/prepare', protect, assetController.prepareBridge);
+router.post('/bridge', protect, assetController.requestBridge);
 router.get('/marketplace', assetController.getMarketplacePools);
 router.post('/sync-oracle/:id', protect, assetController.syncOracle);
 router.post('/grant-role', protect, assetController.grantRole);

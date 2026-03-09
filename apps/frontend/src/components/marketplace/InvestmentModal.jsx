@@ -4,6 +4,18 @@ import { ethers } from 'ethers';
 import api from '../../services/api';
 import { BlockchainService } from '../../services/blockchain.service';
 import contractData from '../../contracts/contracts.json';
+import { syncActiveWalletToBackend } from '../../utils/walletSync';
+
+const StepPill = ({ label, state }) => {
+    const cls = state === 'done'
+        ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
+        : state === 'active'
+            ? 'bg-blue-50 text-blue-700 border-blue-100'
+            : state === 'error'
+                ? 'bg-red-50 text-red-700 border-red-100'
+                : 'bg-slate-50 text-slate-400 border-slate-200';
+    return <span className={`px-2 py-1 rounded-full text-xs font-bold border ${cls}`}>{label}</span>;
+};
 
 const InvestmentModal = ({ asset, isOpen, onClose, onSuccess }) => {
     const [amount, setAmount] = useState('');
@@ -12,8 +24,8 @@ const InvestmentModal = ({ asset, isOpen, onClose, onSuccess }) => {
     const [txHash, setTxHash] = useState('');
     const [balance, setBalance] = useState('0');
     const [oracleStatus, setOracleStatus] = useState({ fresh: true, lastUpdate: '' });
+    const [healthStatus, setHealthStatus] = useState({ paused: false, healthy: true });
     const [revertHelp, setRevertHelp] = useState(null);
-    const [syncNeeded, setSyncNeeded] = useState(false);
     const [isFetching, setIsFetching] = useState(false);
 
     React.useEffect(() => {
@@ -27,18 +39,17 @@ const InvestmentModal = ({ asset, isOpen, onClose, onSuccess }) => {
         setIsFetching(true);
         try {
             const signer = await BlockchainService.getSigner();
-            const userAddress = await signer.getAddress();
+            const synced = await syncActiveWalletToBackend(signer);
+            const userAddress = synced?.address || await signer.getAddress();
 
             // 1. Verify Contract Existence (Avoid BAD_DATA crash)
             const isValid = await BlockchainService.isContract(asset.stablecoinAddress);
             if (!isValid) {
                 console.warn(`[Investment] Stablecoin address ${asset.stablecoinAddress} is dead on this network.`);
-                setSyncNeeded(true);
                 setBalance('0');
                 setIsFetching(false);
                 return;
             }
-            setSyncNeeded(false);
 
             // 2. Fetch USDC Balance
             const usdcAbi = ["function balanceOf(address) view returns (uint256)"];
@@ -51,7 +62,7 @@ const InvestmentModal = ({ asset, isOpen, onClose, onSuccess }) => {
             const poolId = ethers.encodeBytes32String(`POOL_${asset.id}`);
             const navOracleAbi = ["function latestNav(bytes32) view returns (uint256, uint256, bytes32)"];
             const navOracle = new ethers.Contract(navOracleAddr, navOracleAbi, signer);
-            const [nav, timestamp, reportId] = await navOracle.latestNav(poolId);
+            const [, timestamp] = await navOracle.latestNav(poolId);
 
             const lastDate = new Date(Number(timestamp) * 1000);
             const isFresh = (Date.now() / 1000) - Number(timestamp) < 86400 * 2; // 2 days
@@ -59,6 +70,20 @@ const InvestmentModal = ({ asset, isOpen, onClose, onSuccess }) => {
                 fresh: isFresh && timestamp > 0n,
                 lastUpdate: timestamp > 0n ? lastDate.toLocaleString() : 'Never'
             });
+
+            // 4. Fetch PoR health/paused status
+            const porOracleAddr = import.meta.env.VITE_POR_ORACLE_ADDRESS;
+            const assetId = ethers.encodeBytes32String(`ASSET_${asset.id}`);
+            const porAbi = [
+                "function isPaused() view returns (bool)",
+                "function isSystemHealthy(bytes32 assetId) view returns (bool)"
+            ];
+            const por = new ethers.Contract(porOracleAddr, porAbi, signer);
+            const [paused, healthy] = await Promise.all([
+                por.isPaused(),
+                por.isSystemHealthy(assetId)
+            ]);
+            setHealthStatus({ paused, healthy });
         } catch (e) {
             console.error("Failed to fetch diagnostics:", e);
         } finally {
@@ -84,6 +109,19 @@ const InvestmentModal = ({ asset, isOpen, onClose, onSuccess }) => {
         }
     };
 
+    const handleSyncOracle = async () => {
+        try {
+            setLoading(true);
+            await api.post(`/assets/sync-oracle/${asset.id}`);
+            await fetchDiagnostics();
+            setRevertHelp(null);
+        } catch (e) {
+            alert("Oracle sync failed: " + (e.response?.data?.error || e.message));
+        } finally {
+            setLoading(false);
+        }
+    };
+
     if (!isOpen) return null;
 
     const handleInvest = async () => {
@@ -91,8 +129,10 @@ const InvestmentModal = ({ asset, isOpen, onClose, onSuccess }) => {
 
         console.log(`[User Action] Investing ${amount} into ${asset.name}...`);
         setLoading(true);
+        setRevertHelp(null);
         try {
             const signer = await BlockchainService.getSigner();
+            await syncActiveWalletToBackend(signer);
             const amountWei = ethers.parseUnits(amount, 6);
 
             setStatus('APPROVING');
@@ -111,11 +151,32 @@ const InvestmentModal = ({ asset, isOpen, onClose, onSuccess }) => {
 
             setTxHash(receipt.hash);
 
+            // Parse actual minted shares from on-chain event instead of assuming 1:1.
+            let mintedSharesRaw = 0n;
+            let investedAssetsRaw = amountWei;
+            try {
+                for (const log of receipt.logs || []) {
+                    try {
+                        const parsed = poolContract.interface.parseLog(log);
+                        if (parsed?.name === 'PoolInvested') {
+                            // event PoolInvested(address receiver, uint256 assets, uint256 shares)
+                            investedAssetsRaw = parsed.args?.assets ?? amountWei;
+                            mintedSharesRaw = parsed.args?.shares ?? 0n;
+                            break;
+                        }
+                    } catch {
+                        // Ignore non-matching logs
+                    }
+                }
+            } catch {
+                // Fallback handled below
+            }
+
             // Record investment in backend
             await api.post(`/assets/invest/${asset.pool.id}`, {
                 investorAddress: await signer.getAddress(),
-                amountPaid: parseFloat(amount),
-                sharesReceived: parseFloat(amount), // AURAPS is 1:1 for now or based on preview
+                amountPaid: Number(ethers.formatUnits(investedAssetsRaw, 6)),
+                sharesReceived: Number(ethers.formatEther(mintedSharesRaw)),
                 txHash: receipt.hash
             });
 
@@ -130,17 +191,17 @@ const InvestmentModal = ({ asset, isOpen, onClose, onSuccess }) => {
 
             // Helpful Diagnostics for the User
             const errorData = err.data || err.error?.data || "";
-            if (errorData.includes("0x3938508e") || err.message?.includes("0x3938508e")) {
+            if (errorData.includes("0x8645d5f9") || err.message?.includes("0x8645d5f9")) {
                 setRevertHelp({
                     title: "Stale Oracle Data",
                     message: "The pool rejected this trade because the on-chain price (NAV) has not been updated recently.",
                     solution: "An Admin must go to the Dashboard and click 'Sync On-Chain Data' for this asset."
                 });
-            } else if (errorData.includes("0x0e5e0a05") || err.message?.includes("SystemPaused")) {
+            } else if (errorData.includes("0x729e4c40") || err.message?.includes("SystemPaused")) {
                 setRevertHelp({
                     title: "Protocol Paused",
-                    message: "The Proof-of-Reserve system has paused this pool due to a detected imbalance or manual override.",
-                    solution: "Contact system administrator or check the asset's backing status."
+                    message: "Proof-of-Reserve is unhealthy or paused for this asset, so investing is blocked.",
+                    solution: "Sync oracle data for this asset, then retry."
                 });
             } else if (err.message.includes('CALL_EXCEPTION') || err.message.includes('revert')) {
                 setRevertHelp({
@@ -294,6 +355,34 @@ const InvestmentModal = ({ asset, isOpen, onClose, onSuccess }) => {
                                     </div>
                                 )}
 
+                                {(healthStatus.paused || !healthStatus.healthy) && (
+                                    <>
+                                        <div style={{
+                                            marginTop: '1rem',
+                                            padding: '0.75rem',
+                                            background: 'rgba(239, 68, 68, 0.1)',
+                                            border: '1px solid rgba(239, 68, 68, 0.25)',
+                                            borderRadius: '8px',
+                                            fontSize: '0.75rem',
+                                            color: '#ef4444',
+                                            display: 'flex',
+                                            gap: '0.5rem',
+                                            alignItems: 'center'
+                                        }}>
+                                            <Info size={14} />
+                                            <span>Pool health check failed (PoR paused/unhealthy). Oracle sync required before investing.</span>
+                                        </div>
+                                        <button
+                                            onClick={handleSyncOracle}
+                                            className="secondary small"
+                                            style={{ marginTop: '0.75rem', width: '100%', fontSize: '0.75rem' }}
+                                            disabled={loading}
+                                        >
+                                            Sync Oracle Data
+                                        </button>
+                                    </>
+                                )}
+
                                 {Number(balance) === 0 && (
                                     <button
                                         onClick={handleGetTokens}
@@ -318,6 +407,21 @@ const InvestmentModal = ({ asset, isOpen, onClose, onSuccess }) => {
                                     <div style={{ marginTop: '0.5rem', fontWeight: 600, fontSize: '0.75rem', color: 'white' }}>Solution: {revertHelp.solution}</div>
                                 </div>
                             )}
+
+                            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
+                                <StepPill
+                                    label="Approve USDC"
+                                    state={status === 'APPROVING' ? 'active' : ['DEPOSITING', 'SUCCESS'].includes(status) ? 'done' : 'pending'}
+                                />
+                                <StepPill
+                                    label="Mint Pool Token"
+                                    state={status === 'DEPOSITING' ? 'active' : status === 'SUCCESS' ? 'done' : status === 'IDLE' ? 'pending' : 'pending'}
+                                />
+                                <StepPill
+                                    label="Purchase Recorded"
+                                    state={status === 'SUCCESS' ? 'done' : status === 'IDLE' ? 'pending' : 'pending'}
+                                />
+                            </div>
 
                             <button
                                 onClick={handleInvest}

@@ -1,28 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import api from '../services/api';
 import { LayoutDashboard, ShieldCheck, LogOut, Wallet, Box, ShoppingBag } from 'lucide-react';
 
 const Navbar = () => {
     const { user, logout } = useAuth();
-    const [kycStatus, setKycStatus] = useState(null);
     const navigate = useNavigate();
-
-    useEffect(() => {
-        if (user) {
-            fetchKYCStatus();
-        }
-    }, [user]);
-
-    const fetchKYCStatus = async () => {
-        try {
-            const res = await api.get('/kyc/status');
-            setKycStatus(res.data.kycStatus);
-        } catch (err) {
-            console.error('Failed to fetch KYC status in navbar', err);
-        }
-    };
+    const kycStatus = user?.kycStatus || null;
 
     if (!user) return null;
 

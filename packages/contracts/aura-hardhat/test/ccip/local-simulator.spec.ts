@@ -46,9 +46,11 @@ describe("CCIP local simulation", function () {
     await identity.setVerified(await receiver.getAddress(), true);
     await identity.setVerified(await sender.getAddress(), true);
     await identity.setVerified(await router.getAddress(), true);
+    const bridgeRole = ethers.keccak256(ethers.toUtf8Bytes("BRIDGE_ROLE"));
+    await token.grantRole(bridgeRole, await sender.getAddress());
+    await token.grantRole(bridgeRole, await receiver.getAddress());
 
     await token.mint(alice.address, ethers.parseEther("10"));
-    await token.connect(alice).approve(await sender.getAddress(), ethers.parseEther("5"));
     await link.mint(await sender.getAddress(), ethers.parseEther("1"));
 
     await sender.connect(alice).bridgeToFuji(bob.address, ethers.parseEther("5"), "0x");

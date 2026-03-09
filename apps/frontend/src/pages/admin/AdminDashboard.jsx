@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import api from '../../services/api';
-import { UserCheck, UserX, AlertCircle, CheckCircle, Clock, Package, Shield } from 'lucide-react';
+import { UserCheck, UserX, AlertCircle, CheckCircle, Clock, Package, Shield, Award } from 'lucide-react';
 import { ethers } from 'ethers';
 import { BlockchainService } from '../../services/blockchain.service';
 
