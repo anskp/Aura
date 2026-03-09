@@ -3,20 +3,84 @@ const geminiService = require('./gemini.service');
 const blockchainService = require('./blockchain.service');
 const { ethers } = require('ethers');
 
-const onboardAsset = async (userId, assetData) => {
+const onboardAsset = async (userId, assetData, files = {}) => {
     console.log(`[Asset Service] Onboarding new asset: ${assetData.name}`);
-    // Get AI valuation
-    const aiValuation = await geminiService.getAssetValuation(assetData);
-    console.log(`[Asset Service] AI Valuation for ${assetData.name}: ${aiValuation.recommendedValuation}`);
+
+    // Categorize metadata based on asset type
+    const metadataFields = {};
+    if (assetData.type === 'REAL_ESTATE') {
+        ['propertyTitle', 'usageType', 'propertyCategory', 'yearBuilt', 'totalFloors', 'totalUnits', 'address', 'city', 'country', 'coordinates'].forEach(f => {
+            if (assetData[f]) metadataFields[f] = assetData[f];
+        });
+    } else if (assetData.type === 'ART') {
+        ['artistName', 'artworkTitle', 'artworkType', 'medium', 'dimensions', 'edition', 'yearCreated', 'provenance'].forEach(f => {
+            if (assetData[f]) metadataFields[f] = assetData[f];
+        });
+    } else if (assetData.type === 'METAL') {
+        ['brand', 'model', 'serialNumber', 'condition', 'manufactureYear', 'authCertificate'].forEach(f => {
+            if (assetData[f]) metadataFields[f] = assetData[f];
+        });
+    } else if (assetData.type === 'CARBON') {
+        ['projectName', 'standard', 'vintageYear', 'registryRecord', 'mitigationType', 'verificationBody'].forEach(f => {
+            if (assetData[f]) metadataFields[f] = assetData[f];
+        });
+    }
+
+    // Handle File Paths
+    const coverImagePath = files.coverImage ? `/uploads/assets/images/${files.coverImage[0].filename}` : null;
+    const galleryPaths = files.gallery ? files.gallery.map(f => `/uploads/assets/images/${f.filename}`) : [];
+
+    const documentPaths = {};
+    ['ownershipProof', 'valuationProof', 'legalCompliance', 'logistics'].forEach(field => {
+        if (files[field]) {
+            documentPaths[field] = `/uploads/assets/documents/${files[field][0].filename}`;
+        }
+    });
+
+    // Get AI valuation (pass relevant data)
+    const aiValuation = await geminiService.getAssetValuation({
+        ...assetData,
+        ...metadataFields
+    });
 
     const asset = await prisma.asset.create({
         data: {
-            ...assetData,
-            valuation: assetData.valuation,
+            name: assetData.name,
+            symbol: assetData.symbol,
+            type: assetData.type,
+            description: assetData.description || assetData.summary,
+            valuation: parseFloat(assetData.valuation) || 0,
             aiPricing: aiValuation.recommendedValuation,
             aiReasoning: aiValuation.reasoning,
             ownerId: userId,
+            location: assetData.city && assetData.country ? `${assetData.city}, ${assetData.country}` : assetData.location,
             status: 'PENDING',
+
+            // Extended onboarding data
+            regStatus: assetData.regStatus || 'REGULATED',
+            summary: assetData.summary,
+            coverImage: coverImagePath,
+            gallery: galleryPaths,
+            documents: documentPaths,
+            metadata: metadataFields,
+
+            // Custody
+            custodyProvider: assetData.custodyProvider,
+            vaultId: assetData.vaultId,
+            storageLocation: assetData.storageLocation,
+
+            // Transparency
+            valuationMethod: assetData.valuationMethod,
+            valuationDate: assetData.valuationDate ? new Date(assetData.valuationDate) : null,
+            valuationCurrency: assetData.valuationCurrency || 'USD',
+            custodianName: assetData.custodianName,
+            accountRef: assetData.accountRef,
+
+            // Attestations (convert string to boolean if from FormData)
+            attestExist: assetData.attestExist === 'true' || assetData.attestExist === true,
+            attestOwnership: assetData.attestOwnership === 'true' || assetData.attestOwnership === true,
+            attestNav: assetData.attestNav === 'true' || assetData.attestNav === true,
+
             updatedAt: new Date()
         }
     });
@@ -262,7 +326,8 @@ const getMarketplacePools = async () => {
             ...pool.asset,
             valuation: Number(pool.asset.valuation),
             aiPricing: Number(pool.asset.aiPricing),
-            nav: Number(pool.asset.nav)
+            nav: Number(pool.asset.nav),
+            por: Number(pool.asset.por)
         }
     }));
 };

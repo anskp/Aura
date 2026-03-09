@@ -36,7 +36,10 @@ const AssetDetailModal = ({ pool, asset: directAsset, isOpen, onClose, onInvest,
     const roi = asset.roi || `${10 + (asset.id ? asset.id % 5 : 2)}%`;
     const cagr = asset.cagr || `${12 + (asset.id ? asset.id % 6 : 4)}%`;
     const strategy = asset.investmentStrategy || 'Capital Growth';
-    const mockImage = asset.image || 'https://images.unsplash.com/photo-1618044733300-94f4bf0082c3?auto=format&fit=crop&q=80&w=1000';
+    const API_URL = 'http://localhost:5000';
+    const mockImage = asset.coverImage
+        ? `${API_URL}${asset.coverImage}`
+        : (asset.image || 'https://images.unsplash.com/photo-1618044733300-94f4bf0082c3?auto=format&fit=crop&q=80&w=1000');
     const issuerName = asset.companyName || 'Aura Protocol';
     const issuerLogo = `https://ui-avatars.com/api/?name=${encodeURIComponent(issuerName)}&background=218d34&color=fff`;
 
@@ -177,7 +180,48 @@ const AssetDetailModal = ({ pool, asset: directAsset, isOpen, onClose, onInvest,
                                     <DetailRow icon={BrainCircuit} label="AI Score" value={`${aiConfidence}/100`} />
                                     <DetailRow icon={TrendingUp} label="Risk Level" value={asset.riskLevel || 'Moderate'} />
                                 </div>
+
+                                {/* Dynamic Metadata (Class-specific) */}
+                                {asset.metadata && Object.keys(asset.metadata).length > 0 && (
+                                    <div className="bg-white dark:bg-slate-800/30 border border-slate-100 dark:border-slate-800 rounded-2xl p-4 md:col-span-2">
+                                        <h4 className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 mb-3 flex items-center gap-1.5">
+                                            <BadgeCheck size={12} /> Technical Specifications
+                                        </h4>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8">
+                                            {Object.entries(asset.metadata).map(([key, val]) => (
+                                                <DetailRow
+                                                    key={key}
+                                                    label={key.replace(/([A-Z])/g, ' $1')}
+                                                    value={val}
+                                                />
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
                             </div>
+
+                            {/* Documents Section */}
+                            {asset.documents && Object.keys(asset.documents).length > 0 && (
+                                <div className="bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 rounded-2xl p-4">
+                                    <h4 className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 mb-2 flex items-center gap-1.5">
+                                        <ExternalLink size={12} /> Verified Documents
+                                    </h4>
+                                    <div className="flex flex-wrap gap-2 pt-1">
+                                        {Object.entries(asset.documents).map(([type, path]) => (
+                                            <a
+                                                key={type}
+                                                href={`${API_URL}${path}`}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="px-3 py-1.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-[11px] font-bold text-slate-600 dark:text-slate-300 hover:text-primary hover:border-primary/30 flex items-center gap-1.5 transition-all"
+                                            >
+                                                <ChevronRight size={12} />
+                                                {type.replace(/([A-Z])/g, ' $1').toUpperCase()}
+                                            </a>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
 
                             {/* Description */}
                             {asset.description && (

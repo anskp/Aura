@@ -4,7 +4,7 @@ const onboardAsset = async (req, res) => {
     try {
         console.log(`[API] Received onboard request for ${req.body.name}`);
         const userId = req.user.id;
-        const asset = await assetService.onboardAsset(userId, req.body);
+        const asset = await assetService.onboardAsset(userId, req.body, req.files);
         res.status(201).json(asset);
     } catch (error) {
         console.error(`[API Error] onboardAsset: ${error.message}`);

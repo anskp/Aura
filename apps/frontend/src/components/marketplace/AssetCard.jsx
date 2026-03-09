@@ -16,9 +16,11 @@ const PLACEHOLDER_MAP = {
 const AssetCard = ({ asset, onInvest, isPreview = false, customAction = null }) => {
     // Generate some mock/fallback data for aesthetic purposes
     const aiConfidence = 90 + (asset.id ? asset.id % 9 : 5);
+    const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
-    // Premium Image Resolution
-    const mockImage = asset.image ||
+    // Premium Image Resolution with Cover Image support
+    const mockImage = (asset.coverImage ? `${API_URL}${asset.coverImage}` : null) ||
+        asset.image ||
         (asset.type === 'REAL_ESTATE' ? (asset.id % 2 === 0 ? rwaInterior : rwaLobby) : null) ||
         PLACEHOLDER_MAP[asset.type] ||
         'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=1600&q=80';

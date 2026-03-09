@@ -57,7 +57,35 @@ model asset {
   deploymentTxHash String?
   ownerId          Int
   createdAt        DateTime      @default(now())
-  updatedAt        DateTime
+  updatedAt        DateTime      @updatedAt
+  
+  // Extended Onboarding Fields
+  regStatus        asset_reg_status @default(REGULATED)
+  summary          String?          @db.Text
+  coverImage       String?
+  gallery          Json?            // Array of paths
+  documents        Json?            // Object { type: path }
+  
+  // Class-specific Metadata
+  metadata         Json?            // Flexible storage for Real Estate, Art, etc.
+  
+  // Custody
+  custodyProvider  String?
+  vaultId          String?
+  storageLocation  String?
+  
+  // Transparency
+  valuationMethod  String?
+  valuationDate    DateTime?
+  valuationCurrency String?         @default("USD")
+  custodianName    String?
+  accountRef       String?
+  
+  // Attestations
+  attestExist      Boolean          @default(false)
+  attestOwnership  Boolean          @default(false)
+  attestNav        Boolean          @default(false)
+
   user             user          @relation(fields: [ownerId], references: [id], map: "Asset_ownerId_fkey")
   pool             pool?
   token            token?
@@ -216,4 +244,9 @@ enum p2p_trade_status {
   MATCHED
   SETTLED
   FAILED
+}
+
+enum asset_reg_status {
+  REGULATED
+  NON_REGULATED
 }
