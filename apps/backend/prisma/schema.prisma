@@ -39,57 +39,46 @@ model wallet {
 }
 
 model asset {
-  id               Int           @id @default(autoincrement())
-  name             String
-  symbol           String
-  description      String?       @db.Text
-  type             asset_type
-  valuation        Decimal
-  aiPricing        Decimal?
-  aiReasoning      String?       @db.Text
-  nav              Decimal?
-  por              Decimal?
-  tokenAddress     String?
-  location         String?
-  status           asset_status  @default(PENDING)
-  companyName      String?
-  companyRegNumber String?
-  deploymentTxHash String?
-  ownerId          Int
-  createdAt        DateTime      @default(now())
-  updatedAt        DateTime      @updatedAt
-  
-  // Extended Onboarding Fields
-  regStatus        asset_reg_status @default(REGULATED)
-  summary          String?          @db.Text
-  coverImage       String?
-  gallery          Json?            // Array of paths
-  documents        Json?            // Object { type: path }
-  
-  // Class-specific Metadata
-  metadata         Json?            // Flexible storage for Real Estate, Art, etc.
-  
-  // Custody
-  custodyProvider  String?
-  vaultId          String?
-  storageLocation  String?
-  
-  // Transparency
-  valuationMethod  String?
-  valuationDate    DateTime?
-  valuationCurrency String?         @default("USD")
-  custodianName    String?
-  accountRef       String?
-  
-  // Attestations
-  attestExist      Boolean          @default(false)
-  attestOwnership  Boolean          @default(false)
-  attestNav        Boolean          @default(false)
-
-  user             user          @relation(fields: [ownerId], references: [id], map: "Asset_ownerId_fkey")
-  pool             pool?
-  token            token?
-  transaction      transaction[]
+  id                Int              @id @default(autoincrement())
+  name              String
+  symbol            String
+  description       String?          @db.Text
+  type              asset_type
+  valuation         Decimal
+  aiPricing         Decimal?
+  aiReasoning       String?          @db.Text
+  nav               Decimal?
+  por               Decimal?
+  tokenAddress      String?
+  location          String?
+  status            asset_status     @default(PENDING)
+  companyName       String?
+  companyRegNumber  String?
+  deploymentTxHash  String?
+  ownerId           Int
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  accountRef        String?
+  attestExist       Boolean          @default(false)
+  attestNav         Boolean          @default(false)
+  attestOwnership   Boolean          @default(false)
+  coverImage        String?
+  custodianName     String?
+  custodyProvider   String?
+  documents         Json?
+  gallery           Json?
+  metadata          Json?
+  regStatus         asset_reg_status @default(REGULATED)
+  storageLocation   String?
+  summary           String?          @db.Text
+  valuationCurrency String?          @default("USD")
+  valuationDate     DateTime?
+  valuationMethod   String?
+  vaultId           String?
+  user              user             @relation(fields: [ownerId], references: [id], map: "Asset_ownerId_fkey")
+  pool              pool?
+  token             token?
+  transaction       transaction[]
 
   @@index([ownerId], map: "Asset_ownerId_fkey")
 }

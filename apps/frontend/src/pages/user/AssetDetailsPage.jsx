@@ -1,7 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import api from '../../services/api';
-import InvestmentModal from '../../components/marketplace/InvestmentModal';
+import contractData from '../../contracts/contracts.json';
+import { BlockchainService } from '../../services/blockchain.service';
+import { syncActiveWalletToBackend } from '../../utils/walletSync';
+import { ethers } from 'ethers';
+import { Loader2, CheckCircle2, Info, Wallet, ArrowRight, ExternalLink } from 'lucide-react';
 
 // High-quality local assets
 import rwaInterior from '../../assets/rwa_interior.png';
@@ -19,8 +23,16 @@ const AssetDetailsPage = () => {
     const [pool, setPool] = useState(location.state?.pool || null);
     const [asset, setAsset] = useState(location.state?.asset || location.state?.pool?.asset || null);
     const [loading, setLoading] = useState(!location.state?.pool && !location.state?.asset);
-    const [isInvestOpen, setIsInvestOpen] = useState(false);
     const [amount, setAmount] = useState('1000');
+
+    // Investment states
+    const [investmentStatus, setInvestmentStatus] = useState('IDLE'); // IDLE, APPROVING, DEPOSITING, SUCCESS
+    const [walletBalance, setWalletBalance] = useState('0');
+    const [oracleStatus, setOracleStatus] = useState({ fresh: true, lastUpdate: '' });
+    const [healthStatus, setHealthStatus] = useState({ paused: false, healthy: true });
+    const [txHash, setTxHash] = useState('');
+    const [revertHelp, setRevertHelp] = useState(null);
+    const [isFetchingDiagnostics, setIsFetchingDiagnostics] = useState(false);
 
     useEffect(() => {
         const load = async () => {
@@ -50,6 +62,163 @@ const AssetDetailsPage = () => {
 
         load();
     }, [assetId, pool, asset]);
+
+    const fetchDiagnostics = async () => {
+        if (!pool || isFetchingDiagnostics) return;
+        setIsFetchingDiagnostics(true);
+        try {
+            const signer = await BlockchainService.getSigner();
+            const synced = await syncActiveWalletToBackend(signer);
+            const userAddress = synced?.address || await signer.getAddress();
+
+            // 1. Verify Contract Existence
+            const isValid = await BlockchainService.isContract(pool.stablecoinAddress);
+            if (!isValid) {
+                setWalletBalance('0');
+                return;
+            }
+
+            // 2. Fetch USDC Balance
+            const usdcAbi = ["function balanceOf(address) view returns (uint256)"];
+            const usdc = new ethers.Contract(pool.stablecoinAddress, usdcAbi, signer);
+            const bal = await usdc.balanceOf(userAddress);
+            setWalletBalance(ethers.formatUnits(bal, 6));
+
+            // 3. Fetch Oracle Status
+            const navOracleAddr = import.meta.env.VITE_NAV_ORACLE_ADDRESS;
+            const poolId = ethers.encodeBytes32String(`POOL_${asset.id}`);
+            const navOracleAbi = ["function latestNav(bytes32) view returns (uint256, uint256, bytes32)"];
+            const navOracle = new ethers.Contract(navOracleAddr, navOracleAbi, signer);
+            const [, timestamp] = await navOracle.latestNav(poolId);
+
+            const lastDate = new Date(Number(timestamp) * 1000);
+            const isFresh = (Date.now() / 1000) - Number(timestamp) < 86400 * 2;
+            setOracleStatus({
+                fresh: isFresh && timestamp > 0n,
+                lastUpdate: timestamp > 0n ? lastDate.toLocaleString() : 'Never'
+            });
+
+            // 4. Fetch PoR health
+            const porOracleAddr = import.meta.env.VITE_POR_ORACLE_ADDRESS;
+            const assetIdStr = ethers.encodeBytes32String(`ASSET_${asset.id}`);
+            const porAbi = [
+                "function isPaused() view returns (bool)",
+                "function isSystemHealthy(bytes32 assetId) view returns (bool)"
+            ];
+            const por = new ethers.Contract(porOracleAddr, porAbi, signer);
+            const [paused, healthy] = await Promise.all([
+                por.isPaused(),
+                por.isSystemHealthy(assetIdStr)
+            ]);
+            setHealthStatus({ paused, healthy });
+        } catch (e) {
+            console.error("Failed to fetch diagnostics:", e);
+        } finally {
+            setIsFetchingDiagnostics(false);
+        }
+    };
+
+    useEffect(() => {
+        if (pool) fetchDiagnostics();
+    }, [pool?.id]);
+
+    const handleInvest = async () => {
+        if (!amount || Number(amount) <= 0) return alert('Please enter a valid amount');
+        if (!pool) return alert('Pool not found');
+
+        setInvestmentStatus('APPROVING');
+        setRevertHelp(null);
+        try {
+            const signer = await BlockchainService.getSigner();
+            await syncActiveWalletToBackend(signer);
+            const amountWei = ethers.parseUnits(amount, 6);
+
+            const stablecoinAbi = ["function approve(address spender, uint256 amount) public returns (bool)"];
+            const stablecoinContract = new ethers.Contract(pool.stablecoinAddress, stablecoinAbi, signer);
+            const approveTx = await stablecoinContract.approve(pool.address, amountWei);
+            await approveTx.wait();
+
+            setInvestmentStatus('DEPOSITING');
+            const poolContract = new ethers.Contract(pool.address, contractData['LiquidityPool'].abi, signer);
+            const depositTx = await poolContract.invest(amountWei, await signer.getAddress());
+            const receipt = await depositTx.wait();
+
+            setTxHash(receipt.hash);
+
+            let mintedSharesRaw = 0n;
+            let investedAssetsRaw = amountWei;
+            for (const log of receipt.logs || []) {
+                try {
+                    const parsed = poolContract.interface.parseLog(log);
+                    if (parsed?.name === 'PoolInvested') {
+                        investedAssetsRaw = parsed.args?.assets ?? amountWei;
+                        mintedSharesRaw = parsed.args?.shares ?? 0n;
+                        break;
+                    }
+                } catch { }
+            }
+
+            await api.post(`/assets/invest/${pool.id}`, {
+                investorAddress: await signer.getAddress(),
+                amountPaid: Number(ethers.formatUnits(investedAssetsRaw, 6)),
+                sharesReceived: Number(ethers.formatEther(mintedSharesRaw)),
+                txHash: receipt.hash
+            });
+
+            setInvestmentStatus('SUCCESS');
+            fetchDiagnostics(); // Refresh balance
+        } catch (err) {
+            console.error('Investment failed:', err);
+            const errorData = err.data || err.error?.data || "";
+            if (errorData.includes("0x8645d5f9") || err.message?.includes("0x8645d5f9")) {
+                setRevertHelp({
+                    title: "Stale Oracle Data",
+                    message: "The pool rejected this trade because the on-chain price (NAV) has not been updated recently.",
+                    solution: "An Admin must Sync On-Chain Data for this asset."
+                });
+            } else if (errorData.includes("0x729e4c40") || err.message?.includes("SystemPaused")) {
+                setRevertHelp({
+                    title: "Protocol Paused",
+                    message: "Proof-of-Reserve is unhealthy or paused for this asset.",
+                    solution: "Sync oracle data for this asset, then retry."
+                });
+            } else {
+                setRevertHelp({
+                    title: "Investment failed",
+                    message: err.reason || err.message,
+                    solution: "Check your balance and KYC status."
+                });
+            }
+            setInvestmentStatus('IDLE');
+        }
+    };
+
+    const handleGetTokens = async () => {
+        try {
+            setInvestmentStatus('MINTING');
+            const signer = await BlockchainService.getSigner();
+            const address = await signer.getAddress();
+            await api.post('/assets/faucet', { address });
+            await fetchDiagnostics();
+        } catch (e) {
+            alert("Faucet failed: " + (e.response?.data?.error || e.message));
+        } finally {
+            setInvestmentStatus('IDLE');
+        }
+    };
+
+    const handleSyncOracle = async () => {
+        try {
+            setInvestmentStatus('SYNCING');
+            await api.post(`/assets/sync-oracle/${asset.id}`);
+            await fetchDiagnostics();
+            setRevertHelp(null);
+        } catch (e) {
+            alert("Oracle sync failed: " + (e.response?.data?.error || e.message));
+        } finally {
+            setInvestmentStatus('IDLE');
+        }
+    };
 
     const canInvest = useMemo(() => {
         if (!pool || !asset) return false;
@@ -330,11 +499,11 @@ const AssetDetailsPage = () => {
                         <h3 className="font-bold text-2xl m-0 mb-2">Invest in Asset</h3>
                         <p className="text-slate-500 text-sm m-0 mb-8">Fractionalize your portfolio with as little as $100.</p>
 
-                        <div className="bg-slate-50 dark:bg-slate-800/50 p-6 rounded-xl mb-8 border border-slate-100 dark:border-slate-800">
+                        <div className="bg-slate-50 dark:bg-slate-800/50 p-6 rounded-xl mb-6 border border-slate-100 dark:border-slate-800">
                             <div className="flex justify-between items-end mb-6">
                                 <div>
                                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 m-0">Price per Token</p>
-                                    <p className="text-3xl font-black text-slate-900 dark:text-white m-0">$100.00</p>
+                                    <p className="text-3xl font-black text-slate-900 dark:text-white m-0">$1.00</p>
                                 </div>
                                 <div className="text-right">
                                     <p className="text-xs font-bold text-primary mb-1 m-0">{apy}% APY</p>
@@ -344,28 +513,74 @@ const AssetDetailsPage = () => {
 
                             <div className="space-y-4">
                                 <div className="relative">
-                                    <label className="text-[10px] font-bold text-slate-500 absolute left-4 top-2 uppercase">Amount (USD)</label>
+                                    <div className="flex justify-between items-center mb-1 px-1">
+                                        <label className="text-[10px] font-bold text-slate-500 uppercase">Amount (USD)</label>
+                                        <span className={`text-[10px] font-bold ${Number(walletBalance) < Number(amount) ? 'text-red-500' : 'text-slate-400'}`}>
+                                            Balance: {Number(walletBalance).toLocaleString()} USDC
+                                        </span>
+                                    </div>
                                     <input
                                         type="number"
                                         value={amount}
                                         onChange={(e) => setAmount(e.target.value)}
-                                        className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl pt-6 pb-2 px-4 font-black text-xl text-slate-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-primary outline-none"
+                                        disabled={investmentStatus !== 'IDLE'}
+                                        className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl py-3 px-4 font-black text-xl text-slate-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-primary outline-none disabled:opacity-50"
                                     />
                                 </div>
                                 <div className="flex justify-between text-[11px] font-bold px-1">
                                     <span className="text-slate-400">You will receive</span>
-                                    <span className="text-slate-900 dark:text-white">{projectedTokens} {asset.symbol || 'AURAPS'}</span>
+                                    <span className="text-slate-900 dark:text-white">{amount} {asset.symbol || 'AURAPS'}</span>
                                 </div>
                             </div>
                         </div>
 
+                        {investmentStatus === 'SUCCESS' ? (
+                            <div className="bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-100 dark:border-emerald-500/20 p-4 rounded-xl mb-6 text-center animate-fade-in">
+                                <CheckCircle2 className="text-emerald-500 mx-auto mb-2" size={32} />
+                                <p className="text-sm font-bold text-emerald-700 dark:text-emerald-400 m-0">Investment Successful!</p>
+                                <a
+                                    href={`https://sepolia.etherscan.io/tx/${txHash}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-xs text-primary hover:underline mt-2 inline-flex items-center gap-1 font-bold"
+                                >
+                                    View on Etherscan <ExternalLink size={12} />
+                                </a>
+                            </div>
+                        ) : investmentStatus !== 'IDLE' ? (
+                            <div className="bg-blue-50 dark:bg-blue-500/10 border border-blue-100 dark:border-blue-500/20 p-4 rounded-xl mb-6 animate-pulse">
+                                <div className="flex items-center gap-3">
+                                    <Loader2 className="animate-spin text-blue-500" size={20} />
+                                    <div>
+                                        <p className="text-xs font-bold text-blue-700 dark:text-blue-400 m-0">
+                                            {investmentStatus === 'APPROVING' ? 'Approving USDC...' :
+                                                investmentStatus === 'DEPOSITING' ? 'Executing Deposit...' :
+                                                    investmentStatus === 'SYNCING' ? 'Syncing Oracle...' :
+                                                        investmentStatus === 'MINTING' ? 'Requesting Test USDC...' :
+                                                            'Processing...'}
+                                        </p>
+                                        <p className="text-[10px] text-blue-600/60 dark:text-blue-400/60 m-0 mt-0.5">Please confirm in your wallet</p>
+                                    </div>
+                                </div>
+                            </div>
+                        ) : null}
+
+                        {revertHelp && (
+                            <div className="bg-red-50 dark:bg-red-500/10 border border-red-100 dark:border-red-500/20 p-4 rounded-xl mb-6">
+                                <p className="text-xs font-bold text-red-700 dark:text-red-400 m-0 mb-1">{revertHelp.title}</p>
+                                <p className="text-[10px] text-red-600/80 dark:text-red-400/80 m-0 leading-relaxed">{revertHelp.message}</p>
+                                <p className="text-[10px] font-bold text-slate-900 dark:text-white m-0 mt-2">Solution: {revertHelp.solution}</p>
+                            </div>
+                        )}
+
                         {canInvest ? (
                             <button
-                                onClick={() => setIsInvestOpen(true)}
-                                className="w-full bg-primary hover:bg-primary/90 text-white font-bold py-4 rounded-xl shadow-lg shadow-primary/30 transition-all flex items-center justify-center gap-2 mb-4 border-none cursor-pointer"
+                                onClick={handleInvest}
+                                disabled={investmentStatus !== 'IDLE' || Number(walletBalance) < Number(amount)}
+                                className="w-full bg-primary hover:bg-primary/90 text-white font-bold py-4 rounded-xl shadow-lg shadow-primary/30 transition-all flex items-center justify-center gap-2 mb-4 border-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 <span className="material-symbols-outlined">shopping_cart</span>
-                                Buy Shares Now
+                                {investmentStatus !== 'IDLE' ? 'Processing...' : 'Buy Shares Now'}
                             </button>
                         ) : (
                             <button
@@ -376,9 +591,59 @@ const AssetDetailsPage = () => {
                             </button>
                         )}
 
-                        <button className="w-full bg-white dark:bg-transparent border-2 border-slate-100 dark:border-slate-800 hover:border-primary/20 text-slate-600 dark:text-slate-400 font-bold py-4 rounded-xl transition-all cursor-pointer">
-                            Add to Watchlist
-                        </button>
+                        {Number(walletBalance) === 0 && investmentStatus === 'IDLE' && (
+                            <button
+                                onClick={handleGetTokens}
+                                className="w-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-bold py-3 rounded-xl mb-4 transition-all flex items-center justify-center gap-2 border-none cursor-pointer text-xs"
+                            >
+                                <Wallet size={14} /> Get 1,000 Test USDC
+                            </button>
+                        )}
+
+                        {!oracleStatus.fresh && investmentStatus === 'IDLE' && (
+                            <button
+                                onClick={handleSyncOracle}
+                                className="w-full bg-amber-500/10 text-amber-600 font-bold py-2 rounded-xl mb-4 text-[10px] flex items-center justify-center gap-2 border border-amber-500/20"
+                            >
+                                <Info size={12} /> Sync Oracle Data (Stale)
+                            </button>
+                        )}
+
+                        {/* Contract Addresses */}
+                        <div className="space-y-3 pt-6 border-t border-slate-100 dark:border-slate-800">
+                            <div className="flex justify-between items-center group/addr">
+                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Pool Contract</span>
+                                {pool?.address ? (
+                                    <a
+                                        href={`${ETHERSCAN_BASE}${pool.address}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-[11px] font-mono font-bold text-primary hover:underline flex items-center gap-1"
+                                    >
+                                        {pool.address.slice(0, 6)}...{pool.address.slice(-4)}
+                                        <span className="material-symbols-outlined text-xs opacity-0 group-hover/addr:opacity-100 transition-opacity">open_in_new</span>
+                                    </a>
+                                ) : (
+                                    <span className="text-[10px] font-bold text-slate-300">Not Deployed</span>
+                                )}
+                            </div>
+                            <div className="flex justify-between items-center group/token">
+                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Token Contract</span>
+                                {asset?.tokenAddress ? (
+                                    <a
+                                        href={`${ETHERSCAN_BASE}${asset.tokenAddress}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-[11px] font-mono font-bold text-accent-violet hover:underline flex items-center gap-1"
+                                    >
+                                        {asset.tokenAddress.slice(0, 6)}...{asset.tokenAddress.slice(-4)}
+                                        <span className="material-symbols-outlined text-xs opacity-0 group-hover/token:opacity-100 transition-opacity">open_in_new</span>
+                                    </a>
+                                ) : (
+                                    <span className="text-[10px] font-bold text-slate-300">Pending Mint</span>
+                                )}
+                            </div>
+                        </div>
 
                         <div className="mt-8 pt-8 border-t border-slate-100 dark:border-slate-800 space-y-4">
                             <div className="flex items-start gap-3">
@@ -402,28 +667,6 @@ const AssetDetailsPage = () => {
                     </div>
                 </div>
             </div>
-
-            {/* Verification Modal Integration */}
-            {investAsset && (
-                <InvestmentModal
-                    asset={investAsset}
-                    isOpen={isInvestOpen}
-                    onClose={() => setIsInvestOpen(false)}
-                    onSuccess={async () => {
-                        setIsInvestOpen(false);
-                        try {
-                            const response = await api.get('/marketplace/pools');
-                            const refreshed = (response.data || []).find((p) => Number(p.asset?.id) === Number(assetId));
-                            if (refreshed) {
-                                setPool(refreshed);
-                                setAsset(refreshed.asset);
-                            }
-                        } catch (error) {
-                            console.error('Failed to refresh asset after invest', error);
-                        }
-                    }}
-                />
-            )}
         </div>
     );
 };
