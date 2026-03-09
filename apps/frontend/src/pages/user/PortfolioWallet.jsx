@@ -38,6 +38,7 @@ const txLabel = (action) => {
         default: return action || 'Tx';
     }
 };
+const ETHERSCAN_TX_BASE = import.meta.env.VITE_ETHERSCAN_TX_BASE_URL || 'https://sepolia.etherscan.io/tx/';
 
 const statusClass = (status) => {
     if (status === 'SUCCESS') return 'bg-emerald-50 text-emerald-700';
@@ -73,6 +74,10 @@ const PortfolioWallet = () => {
     const [redeemAmount, setRedeemAmount] = useState('');
     const [redeemStatus, setRedeemStatus] = useState('idle');
     const [redeemHash, setRedeemHash] = useState('');
+    const [txnOpen, setTxnOpen] = useState(false);
+    const [txnLoading, setTxnLoading] = useState(false);
+    const [txnTitle, setTxnTitle] = useState('');
+    const [assetTxns, setAssetTxns] = useState([]);
 
     const fetchSummary = async () => {
         setLoading(true);
@@ -265,14 +270,46 @@ const PortfolioWallet = () => {
         }
     };
 
+    const openTxn = async (position) => {
+        if (!position?.assetId) return;
+        setTxnTitle(position.assetName || 'Asset');
+        setTxnOpen(true);
+        setTxnLoading(true);
+        setAssetTxns([]);
+        try {
+            const res = await api.get(`/assets/transactions/${position.assetId}`);
+            setAssetTxns(res.data || []);
+        } catch (e) {
+            setError(e.response?.data?.error || e.message || 'Failed to load asset transactions');
+        } finally {
+            setTxnLoading(false);
+        }
+    };
+
     return (
-        <div className="space-y-6">
-            <div className="flex items-center justify-between">
+        <div className="space-y-8">
+            <div className="flex flex-wrap items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold m-0">Portfolio & Wallet</h1>
-                    <p className="text-slate-500 m-0 mt-2">Live on-chain balances, purchases, swaps, and settlement.</p>
+                    <h1 className="text-4xl font-bold tracking-tight m-0">Portfolio & Wallet</h1>
+                    <p className="text-slate-500 m-0 mt-2">Manage your Real World Assets and wallet balances.</p>
                 </div>
-                <button onClick={fetchSummary} className="px-4 py-2 rounded-lg bg-slate-900 text-white border-none cursor-pointer">Refresh</button>
+                <div className="flex items-center gap-3">
+                    <button
+                        onClick={() => positions.length > 0 && openBridge(positions[0])}
+                        className="flex items-center gap-2 px-5 h-11 rounded-full bg-primary/10 text-primary font-bold border-none cursor-pointer disabled:opacity-50"
+                        disabled={positions.length === 0}
+                    >
+                        <span className="material-symbols-outlined">swap_horiz</span>
+                        Swap
+                    </button>
+                    <button
+                        onClick={fetchSummary}
+                        className="flex items-center gap-2 px-5 h-11 rounded-full bg-primary text-white font-bold border-none cursor-pointer shadow-lg shadow-primary/25"
+                    >
+                        <span className="material-symbols-outlined">refresh</span>
+                        Refresh
+                    </button>
+                </div>
             </div>
 
             {error && <div className="p-3 rounded-lg bg-red-50 text-red-700 text-sm font-medium">{error}</div>}
@@ -280,86 +317,119 @@ const PortfolioWallet = () => {
 
             {!loading && summary && (
                 <>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div className="bg-white rounded-xl border p-5">
-                            <p className="text-xs uppercase text-slate-500 font-bold m-0">Total Portfolio Value</p>
-                            <p className="text-3xl font-bold mt-2 mb-0">${fmt(summary.totalValue)}</p>
-                        </div>
-                        <div className="bg-white rounded-xl border p-5">
-                            <p className="text-xs uppercase text-slate-500 font-bold m-0">Positions</p>
-                            <p className="text-3xl font-bold mt-2 mb-0">{positions.length}</p>
-                        </div>
-                        <div className="bg-white rounded-xl border p-5">
-                            <p className="text-xs uppercase text-slate-500 font-bold m-0">Connected Wallets</p>
-                            <p className="text-3xl font-bold mt-2 mb-0">{summary.wallets?.length || 0}</p>
-                        </div>
-                    </div>
-
-                    <div className="bg-white rounded-xl border p-5">
-                        <h3 className="text-lg font-bold mt-0">Minted Pool Tokens (AURAPS)</h3>
-                        <div className="space-y-3">
-                            {positions.length === 0 && <p className="text-slate-500 text-sm">No pool share positions yet.</p>}
-                            {positions.map((p, idx) => (
-                                <div key={`${p.poolAddress}-${idx}`} className="border rounded-lg p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                        <div className="lg:col-span-7 flex flex-col gap-6">
+                            <div className="bg-white rounded-xl border border-primary/10 p-7">
+                                <div className="flex items-start justify-between mb-6">
                                     <div>
-                                        <p className="font-bold m-0">{p.assetName} ({p.assetSymbol})</p>
-                                        <p className="text-sm text-slate-500 m-0">Wallet: {p.investorAddress}</p>
-                                        <p className="text-sm text-slate-500 m-0">Pool: {p.poolAddress}</p>
+                                        <p className="text-xs uppercase tracking-wider text-slate-500 font-bold m-0">Total Portfolio Value</p>
+                                        <p className="text-5xl font-black tracking-tight mt-2 mb-0">${fmt(summary.totalValue)}</p>
                                     </div>
-                                    <div className="text-right">
-                                        <p className="font-bold m-0">{fmtFromRaw(p.sharesRaw, 18)} AURAPS</p>
-                                        <p className="text-sm text-slate-500 m-0">Redeemable: {fmt(p.redeemableValue)} {p.settlementToken}</p>
-                                        <div className="flex gap-2 justify-end mt-2">
-                                            <button onClick={() => openBridge(p)} className="px-3 py-1.5 rounded-lg bg-primary text-white border-none cursor-pointer text-sm font-bold">Swap (CCIP)</button>
-                                            <button onClick={() => openRedeem(p)} className="px-3 py-1.5 rounded-lg bg-slate-900 text-white border-none cursor-pointer text-sm font-bold">Redeem</button>
-                                        </div>
+                                    <div className="bg-primary/10 rounded-lg px-3 py-1.5 text-primary font-bold text-sm">
+                                        +{positions.length > 0 ? 'Live' : '0.0%'}
                                     </div>
                                 </div>
-                            ))}
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                        <div className="bg-white rounded-xl border p-5">
-                            <h3 className="text-lg font-bold mt-0">Wallet Balances</h3>
-                            <div className="space-y-3">
-                                {walletBalances.length === 0 && <p className="text-slate-500 text-sm">No settlement token balances loaded.</p>}
-                                {walletBalances.map((bal) => (
-                                    <div key={bal.tokenAddress} className="border rounded-lg p-3">
-                                        <p className="font-bold m-0">{bal.symbol}</p>
-                                        {bal.byWallet.map((w) => (
-                                            <p key={w.address} className="text-sm text-slate-600 m-0">{w.address}: {fmt(w.balance, 4)}</p>
-                                        ))}
+                                <div className="grid grid-cols-3 gap-3">
+                                    <div className="bg-background-light p-4 rounded-lg border border-primary/10">
+                                        <p className="text-[11px] uppercase text-slate-500 font-bold m-0">Positions</p>
+                                        <p className="text-2xl font-bold m-0 mt-2">{positions.length}</p>
                                     </div>
-                                ))}
+                                    <div className="bg-background-light p-4 rounded-lg border border-primary/10">
+                                        <p className="text-[11px] uppercase text-slate-500 font-bold m-0">Wallets</p>
+                                        <p className="text-2xl font-bold m-0 mt-2">{summary.wallets?.length || 0}</p>
+                                    </div>
+                                    <div className="bg-background-light p-4 rounded-lg border border-primary/10">
+                                        <p className="text-[11px] uppercase text-slate-500 font-bold m-0">Timeline Events</p>
+                                        <p className="text-2xl font-bold m-0 mt-2">{timeline.length}</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="bg-white rounded-xl border border-primary/10 p-6">
+                                <h3 className="text-xl font-bold mt-0 mb-4">Minted RWA Tokens</h3>
+                                <div className="space-y-3">
+                                    {positions.length === 0 && <p className="text-slate-500 text-sm m-0">No pool share positions yet.</p>}
+                                    {positions.map((p, idx) => (
+                                        <div key={`${p.poolAddress}-${idx}`} className="p-4 rounded-lg border border-primary/10 hover:bg-background-light transition-colors">
+                                            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                                                <div className="flex items-start gap-3">
+                                                    <img
+                                                        src={p.assetImage || p.image || 'https://images.unsplash.com/photo-1520607162513-77705c0f0d4a?w=300&q=80'}
+                                                        alt={p.assetName}
+                                                        className="w-14 h-14 rounded-lg object-cover border border-primary/20"
+                                                    />
+                                                    <div>
+                                                        <p className="font-bold m-0">{p.assetName} ({p.assetSymbol})</p>
+                                                        <p className="text-xs text-slate-500 m-0 mt-1">Wallet: {p.investorAddress}</p>
+                                                        <p className="text-xs text-slate-500 m-0">Pool: {p.poolAddress}</p>
+                                                    </div>
+                                                </div>
+                                                <div className="text-right">
+                                                    <p className="font-bold m-0">{fmtFromRaw(p.sharesRaw, 18)} AURAPS</p>
+                                                    <p className="text-sm text-slate-500 m-0">Redeemable: {fmt(p.redeemableValue)} {p.settlementToken}</p>
+                                                </div>
+                                            </div>
+                                            <div className="flex gap-2 mt-3">
+                                                <button onClick={() => openBridge(p)} className="px-3 py-1.5 rounded-lg bg-primary text-white border-none cursor-pointer text-sm font-bold">Swap (CCIP)</button>
+                                                <button onClick={() => openRedeem(p)} className="px-3 py-1.5 rounded-lg bg-slate-900 text-white border-none cursor-pointer text-sm font-bold">Redeem</button>
+                                                <button onClick={() => openTxn(p)} className="px-3 py-1.5 rounded-lg bg-white text-slate-900 border border-slate-300 cursor-pointer text-sm font-bold">Txn</button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
                         </div>
 
-                        <div className="bg-white rounded-xl border p-5">
-                            <h3 className="text-lg font-bold mt-0">Timeline</h3>
-                            <div className="space-y-3">
-                                {timeline.length === 0 && <p className="text-slate-500 text-sm">No timeline events yet.</p>}
-                                {timeline.map((t) => (
-                                    <div key={t.id} className="flex items-center justify-between border rounded-lg p-3">
-                                        <div>
-                                            <p className="font-bold m-0">{t.label}</p>
-                                            <p className="text-xs text-slate-500 m-0">{new Date(t.createdAt).toLocaleString()}</p>
+                        <div className="lg:col-span-5 flex flex-col gap-6">
+                            <div className="bg-white rounded-xl border border-primary/10 p-6">
+                                <h3 className="text-xl font-bold mt-0 mb-4">Wallet Balances</h3>
+                                <div className="space-y-3">
+                                    {walletBalances.length === 0 && <p className="text-slate-500 text-sm m-0">No settlement token balances loaded.</p>}
+                                    {walletBalances.map((bal) => (
+                                        <div key={bal.tokenAddress} className="p-4 rounded-lg border border-primary/10 bg-background-light">
+                                            <div className="flex items-center justify-between">
+                                                <p className="font-bold m-0">{bal.symbol}</p>
+                                                <p className="text-xs text-slate-500 m-0">{bal.byWallet.length} wallet(s)</p>
+                                            </div>
+                                            <div className="mt-2 space-y-1">
+                                                {bal.byWallet.map((w) => (
+                                                    <p key={w.address} className="text-sm text-slate-600 m-0 break-all">{w.address}: {fmt(w.balance, 4)}</p>
+                                                ))}
+                                            </div>
                                         </div>
-                                        <div className="text-right">
-                                            <span className={`px-2 py-1 rounded-full text-xs font-bold ${statusClass(t.status)}`}>{t.status}</span>
-                                            <p className="text-xs text-slate-500 m-0 mt-1">{t.hash?.slice(0, 10)}...</p>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="bg-white rounded-xl border border-primary/10 p-6">
+                                <div className="flex justify-between items-center mb-4">
+                                    <h3 className="text-xl font-bold mt-0 mb-0">Recent Transactions</h3>
+                                </div>
+                                <div className="space-y-3">
+                                    {timeline.length === 0 && <p className="text-slate-500 text-sm m-0">No timeline events yet.</p>}
+                                    {timeline.map((t) => (
+                                        <div key={t.id} className="flex items-center justify-between border-b border-primary/5 pb-3">
+                                            <div>
+                                                <p className="font-bold m-0">{t.label}</p>
+                                                <p className="text-xs text-slate-500 m-0 mt-1">{new Date(t.createdAt).toLocaleString()}</p>
+                                            </div>
+                                            <div className="text-right">
+                                                <span className={`px-2 py-1 rounded-full text-xs font-bold ${statusClass(t.status)}`}>{t.status}</span>
+                                                <p className="text-xs text-slate-500 m-0 mt-1">{t.hash?.slice(0, 10)}...</p>
+                                            </div>
                                         </div>
-                                    </div>
-                                ))}
+                                    ))}
+                                </div>
                             </div>
                         </div>
                     </div>
+
                 </>
             )}
 
             {bridgeOpen && bridgePosition && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-xl w-full max-w-lg p-6 space-y-4">
+                <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-2xl w-full max-w-lg p-6 space-y-4 border border-primary/20 shadow-2xl">
                         <h3 className="m-0 text-xl font-bold">Swap via CCIP (Sepolia to Fuji)</h3>
                         <p className="text-sm text-slate-500 m-0">Position: {bridgePosition.assetName} | Max: {fmtFromRaw(bridgePosition.sharesRaw, 18)} AURAPS</p>
 
@@ -397,8 +467,8 @@ const PortfolioWallet = () => {
             )}
 
             {redeemOpen && redeemPosition && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-xl w-full max-w-lg p-6 space-y-4">
+                <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-2xl w-full max-w-lg p-6 space-y-4 border border-primary/20 shadow-2xl">
                         <h3 className="m-0 text-xl font-bold">Redeem / Settlement</h3>
                         <p className="text-sm text-slate-500 m-0">Position: {redeemPosition.assetName} | Max: {fmtFromRaw(redeemPosition.sharesRaw, 18)} AURAPS</p>
                         <input value={redeemAmount} onChange={(e) => setRedeemAmount(e.target.value)} placeholder="Shares to redeem" type="number" className="w-full p-3 border rounded-lg" />
@@ -413,6 +483,50 @@ const PortfolioWallet = () => {
                         <div className="flex justify-end gap-2">
                             <button onClick={() => setRedeemOpen(false)} className="px-4 py-2 border rounded-lg bg-white cursor-pointer">Close</button>
                             <button onClick={submitRedeem} className="px-4 py-2 rounded-lg bg-slate-900 text-white border-none cursor-pointer font-bold" disabled={['signing', 'settling', 'recording'].includes(redeemStatus)}>Redeem</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {txnOpen && (
+                <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-2xl w-full max-w-2xl p-6 space-y-4 border border-primary/20 shadow-2xl">
+                        <h3 className="m-0 text-xl font-bold">On-chain Transactions</h3>
+                        <p className="text-sm text-slate-500 m-0">Asset: {txnTitle}</p>
+
+                        {txnLoading ? (
+                            <p className="text-sm text-slate-500 m-0">Loading transactions...</p>
+                        ) : (
+                            <div className="space-y-2 max-h-[50vh] overflow-y-auto">
+                                {assetTxns.length === 0 && <p className="text-sm text-slate-500 m-0">No transactions found.</p>}
+                                {assetTxns.map((tx) => (
+                                    <div key={tx.id} className="border rounded-lg p-3 flex items-center justify-between gap-3">
+                                        <div>
+                                            <p className="font-bold text-sm m-0">{txLabel(tx.actionType)}</p>
+                                            <p className="text-xs text-slate-500 m-0 mt-1">{new Date(tx.createdAt).toLocaleString()}</p>
+                                        </div>
+                                        <div className="text-right">
+                                            <span className={`px-2 py-1 rounded-full text-xs font-bold ${statusClass(tx.status)}`}>{tx.status}</span>
+                                            {tx.txHash && (
+                                                <p className="text-xs m-0 mt-1">
+                                                    <a
+                                                        href={`${ETHERSCAN_TX_BASE}${tx.txHash}`}
+                                                        target="_blank"
+                                                        rel="noreferrer"
+                                                        className="text-primary hover:underline"
+                                                    >
+                                                        View Tx
+                                                    </a>
+                                                </p>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
+                        <div className="flex justify-end gap-2">
+                            <button onClick={() => setTxnOpen(false)} className="px-4 py-2 border rounded-lg bg-white cursor-pointer">Close</button>
                         </div>
                     </div>
                 </div>

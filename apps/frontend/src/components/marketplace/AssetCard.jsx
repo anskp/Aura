@@ -1,10 +1,27 @@
-import React from 'react';
 import { BrainCircuit } from 'lucide-react';
+
+// Premium Local Assets
+import rwaInterior from '../../assets/rwa_interior.png';
+import rwaLobby from '../../assets/rwa_lobby.png';
+import rwaAmenities from '../../assets/rwa_amenities.png';
+import metalPlaceholder from '../../assets/metal_placeholder.png';
+
+const PLACEHOLDER_MAP = {
+    METAL: metalPlaceholder,
+    REAL_ESTATE: rwaInterior,
+    ART: 'https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?w=1200&q=80',
+    CARBON: 'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=1200&q=80',
+};
 
 const AssetCard = ({ asset, onInvest, isPreview = false, customAction = null }) => {
     // Generate some mock/fallback data for aesthetic purposes
     const aiConfidence = 90 + (asset.id ? asset.id % 9 : 5);
-    const mockImage = asset.image || 'https://images.unsplash.com/photo-1618044733300-94f4bf0082c3?auto=format&fit=crop&q=80&w=1000';
+
+    // Premium Image Resolution
+    const mockImage = asset.image ||
+        (asset.type === 'REAL_ESTATE' ? (asset.id % 2 === 0 ? rwaInterior : rwaLobby) : null) ||
+        PLACEHOLDER_MAP[asset.type] ||
+        'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=1600&q=80';
     const issuerName = asset.companyName || 'Aura Protocol';
     const issuerLogo = `https://ui-avatars.com/api/?name=${encodeURIComponent(issuerName)}&background=218d34&color=fff`;
 

@@ -1,48 +1,52 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import SmartToyIcon from '@mui/icons-material/SmartToy';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import LandingPage from './pages/public/LandingPage';
 import LoginPage from './pages/user/LoginPage';
 import RegisterPage from './pages/user/RegisterPage';
 import AdminLoginPage from './pages/admin/AdminLoginPage';
-import UserDashboard from './pages/user/UserDashboard';
 import AdminDashboard from './pages/admin/AdminDashboard';
+import UserDashboard from './pages/user/UserDashboard';
 import AssetDashboard from './pages/user/AssetDashboard';
 import AssetOnboardingPage from './pages/user/AssetOnboardingPage';
 import Marketplace from './pages/user/Marketplace';
 import PortfolioWallet from './pages/user/PortfolioWallet';
+import Discover from './pages/user/Discover';
+import AssetDetailsPage from './pages/user/AssetDetailsPage';
+import P2PMarket from './pages/user/P2PMarket';
 import AccountSettings from './pages/user/AccountSettings';
 import Sidebar from './components/Sidebar';
+import AgentChatModal from './components/AgentChatModal';
 import './index.css';
 
 const Header = ({ title }) => {
   const { user } = useAuth();
 
   return (
-    <header className="h-20 border-b border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-background-dark/80 backdrop-blur-md flex items-center justify-between px-8 sticky top-0 z-10 w-full">
-      <div className="flex items-center gap-4">
+    <header className="h-24 border-b border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-background-dark/80 backdrop-blur-md flex items-center justify-between px-12 sticky top-0 z-10 w-full">
+      <div className="flex items-center gap-6">
         <h2 className="text-xl font-bold tracking-tight mb-0 bg-none text-slate-900 dark:text-white bg-clip-border text-fill-current">{title}</h2>
       </div>
-      <div className="flex items-center gap-6">
+      <div className="flex items-center gap-10">
         <div className="relative">
           <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xl">search</span>
           <input
-            className="pl-10 pr-4 py-2 bg-slate-100 dark:bg-slate-800 border-none rounded-lg text-sm w-64 focus:ring-2 focus:ring-primary/50 transition-all mb-0"
+            className="pl-10 pr-4 py-2.5 bg-slate-100 dark:bg-slate-800 border-none rounded-xl text-sm w-72 focus:ring-2 focus:ring-primary/50 transition-all mb-0"
             placeholder="Search assets or pools..."
             type="text"
           />
         </div>
 
-        {/* Identity Status Badge */}
         {user && (
-          <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-3 py-1.5 rounded-lg cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-            onClick={() => window.location.href = '/settings'}>
-            <span className="material-symbols-outlined text-[18px] text-slate-500">fingerprint</span>
-            <span className={`text-xs font-bold px-2 py-0.5 rounded-full uppercase ${user?.kycStatus === 'APPROVED' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
-              }`}>
-              {user?.kycStatus === 'APPROVED' ? 'VERIFIED' : (user?.kycStatus || 'PENDING')}
-            </span>
-          </div>
+          <button
+            type="button"
+            onClick={() => window.location.href = '/settings'}
+            className="p-0 m-0 bg-transparent border-none cursor-pointer text-primary hover:text-emerald-600 transition-colors w-auto"
+            aria-label="Identity settings"
+          >
+            <span className="material-symbols-outlined text-2xl">fingerprint</span>
+          </button>
         )}
 
         <button className="relative p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-all w-auto bg-transparent border-none cursor-pointer">
@@ -57,11 +61,15 @@ const Header = ({ title }) => {
 const Layout = ({ children }) => {
   const { user } = useAuth();
   const location = useLocation();
+  const [isAgentOpen, setIsAgentOpen] = useState(false);
 
   const getTitle = (path) => {
     if (path === '/dashboard') return 'Overview';
     if (path === '/portfolio') return 'Portfolio & Wallet';
     if (path === '/marketplace') return 'Marketplace';
+    if (path === '/p2p') return 'P2P Market';
+    if (path === '/discover') return 'Discover';
+    if (path.startsWith('/asset/')) return 'Asset Details';
     if (path === '/assets') return 'Asset Management';
     if (path === '/assets/onboard') return 'Onboard Asset';
     if (path === '/settings') return 'Settings';
@@ -80,6 +88,15 @@ const Layout = ({ children }) => {
           {children}
         </div>
       </main>
+      <button
+        type="button"
+        onClick={() => setIsAgentOpen(true)}
+        className="fixed right-6 bottom-6 z-[60] h-14 w-14 rounded-full bg-primary text-white border-none shadow-xl shadow-primary/30 cursor-pointer flex items-center justify-center hover:scale-105 transition-transform"
+        aria-label="Open Aura Agent"
+      >
+        <SmartToyIcon fontSize="medium" />
+      </button>
+      <AgentChatModal isOpen={isAgentOpen} onClose={() => setIsAgentOpen(false)} />
     </div>
   );
 };
@@ -155,10 +172,34 @@ const AppRoutes = () => {
         }
       />
       <Route
+        path="/discover"
+        element={
+          <ProtectedRoute userOnly={true}>
+            <Discover />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/asset/:assetId"
+        element={
+          <ProtectedRoute userOnly={true}>
+            <AssetDetailsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/marketplace"
         element={
           <ProtectedRoute userOnly={true}>
             <Marketplace />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/p2p"
+        element={
+          <ProtectedRoute userOnly={true}>
+            <P2PMarket />
           </ProtectedRoute>
         }
       />

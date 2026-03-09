@@ -96,6 +96,7 @@ const getPortfolioSummary = async (userId) => {
                     redeemableValue: redeemable,
                     settlementToken: stablecoinSymbol,
                     nav: toNumber(pool.asset?.nav, toNumber(pool.asset?.valuation, 0)),
+                    type: pool.asset?.type || 'OTHER',
                     tokenType: 'AURAPS'
                 });
             } catch (error) {

@@ -40,7 +40,7 @@ const AgentChatModal = ({ isOpen, onClose }) => {
     if (!isOpen) return null;
 
     return (
-        <div className="fixed z-50 right-4 bottom-4 w-[380px] max-w-[calc(100vw-2rem)] h-[70vh] max-h-[720px] min-h-[420px] bg-white dark:bg-background-dark border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl flex flex-col md:right-6 md:bottom-6">
+        <div className="fixed z-[70] right-4 bottom-4 w-[380px] max-w-[calc(100vw-2rem)] h-[70vh] max-h-[720px] min-h-[420px] bg-white dark:bg-background-dark border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl flex flex-col md:right-6 md:bottom-6">
             <div className="absolute -top-10 right-0 md:hidden">
                 <button onClick={onClose} className="bg-slate-900 text-white border-none rounded-full px-3 py-1 text-xs cursor-pointer">
                     Close

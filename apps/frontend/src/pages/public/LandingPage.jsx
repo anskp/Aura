@@ -1,6 +1,8 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import auraLogo from '../../assets/aura_logo_transparent.png';
+import heroBg from '../../assets/hero_bg.png';
 
 const LandingPage = () => {
     const navigate = useNavigate();
@@ -20,9 +22,7 @@ const LandingPage = () => {
                 {/* Navigation */}
                 <header className="flex items-center justify-between whitespace-nowrap border-b border-slate-200 dark:border-slate-800 px-6 md:px-20 py-4 bg-white/80 dark:bg-background-dark/80 backdrop-blur-md sticky top-0 z-50">
                     <div className="flex items-center gap-3">
-                        <div className="h-8 w-8 bg-gradient-to-br from-teal-400 via-primary to-violet-600 rounded-lg flex items-center justify-center text-white">
-                            <span className="material-symbols-outlined text-xl">token</span>
-                        </div>
+                        <img src={auraLogo} alt="Aura logo" className="h-10 w-10 object-contain" />
                         <h2 className="text-slate-900 dark:text-white text-2xl font-bold tracking-tight bg-none m-0">AURA</h2>
                     </div>
                     <div className="flex flex-1 justify-end gap-8 items-center">
@@ -59,10 +59,6 @@ const LandingPage = () => {
                     <div className="px-6 md:px-20 py-12 md:py-24 max-w-7xl mx-auto">
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
                             <div className="flex flex-col gap-8">
-                                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold uppercase tracking-widest w-fit border border-primary/20">
-                                    <span className="material-symbols-outlined text-sm">auto_awesome</span>
-                                    Next-Gen RWA Protocol
-                                </div>
                                 <h1 className="text-slate-900 dark:text-white text-5xl md:text-7xl font-bold leading-[1.1] tracking-tight m-0 bg-none">
                                     Turning the Physical World into <span className="bg-clip-text text-transparent bg-gradient-to-br from-teal-400 to-primary">Autonomous</span> On-Chain Liquidity
                                 </h1>
@@ -84,7 +80,12 @@ const LandingPage = () => {
                             <div className="relative mt-12 lg:mt-0">
                                 <div className="absolute -inset-4 bg-gradient-to-br from-teal-400 via-primary to-violet-600 opacity-20 blur-3xl rounded-full"></div>
                                 <div className="relative aspect-square w-full rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 shadow-2xl bg-white dark:bg-slate-900">
-                                    <div className="absolute inset-0 bg-cover bg-center opacity-90 transition-transform hover:scale-105 duration-700" style={{ backgroundImage: "url('https://images.unsplash.com/photo-1618044733300-94f4bf0082c3?auto=format&fit=crop&q=80&w=1000')" }}></div>
+                                    <img
+                                        src={heroBg}
+                                        alt="Tokenized real-world assets"
+                                        className="absolute inset-0 h-full w-full object-cover opacity-95 transition-transform hover:scale-105 duration-700"
+                                    />
+                                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-black/10" />
                                     <div className="absolute bottom-6 left-6 right-6 p-6 rounded-xl bg-white/10 backdrop-blur-md border border-white/20 shadow-xl">
                                         <div className="flex justify-between items-end text-white">
                                             <div>
@@ -205,9 +206,7 @@ const LandingPage = () => {
                     <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-start gap-12">
                         <div className="flex flex-col gap-4 max-w-xs">
                             <div className="flex items-center gap-3">
-                                <div className="h-8 w-8 bg-gradient-to-br from-teal-400 via-primary to-violet-600 rounded flex items-center justify-center text-white">
-                                    <span className="material-symbols-outlined text-base">token</span>
-                                </div>
+                                <img src={auraLogo} alt="Aura logo" className="h-9 w-9 object-contain" />
                                 <h2 className="text-slate-900 dark:text-white text-xl font-bold tracking-tight m-0 bg-none">AURA</h2>
                             </div>
                             <p className="text-slate-500 dark:text-slate-400 text-sm m-0">Building the future of decentralized finance by bridging the physical and digital worlds.</p>

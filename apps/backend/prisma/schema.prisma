@@ -8,19 +8,21 @@ datasource db {
 }
 
 model user {
-  id                 Int       @id @default(autoincrement())
-  email              String    @unique(map: "User_email_key")
+  id                 Int         @id @default(autoincrement())
+  email              String      @unique(map: "User_email_key")
   password           String
-  role               user_role @default(USER)
-  kycStatus          KycStatus @default(NOT_STARTED)
-  createdAt          DateTime  @default(now())
-  updatedAt          DateTime  @updatedAt
+  role               user_role   @default(USER)
+  kycStatus          KycStatus   @default(NOT_STARTED)
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
   kycLevel           String?
   kycRejectionReason String?
   kycReviewedAt      DateTime?
   kycSnapshot        Json?
-  sumsubApplicantId  String?   @unique
+  sumsubApplicantId  String?     @unique
   asset              asset[]
+  p2pSellOrders      p2p_order[] @relation("P2POrderSeller")
+  p2pBuyTrades       p2p_trade[] @relation("P2PTradeBuyer")
   wallets            wallet[]
 }
 
@@ -88,6 +90,7 @@ model pool {
   status            pool_status  @default(ACTIVE)
   createdAt         DateTime     @default(now())
   investment        investment[]
+  p2pOrders         p2p_order[]
   asset             asset        @relation(fields: [assetId], references: [id], map: "Pool_assetId_fkey")
 }
 
@@ -115,6 +118,41 @@ model transaction {
   asset       asset?                 @relation(fields: [assetId], references: [id], map: "Transaction_assetId_fkey")
 
   @@index([assetId], map: "Transaction_assetId_fkey")
+}
+
+model p2p_order {
+  id            Int              @id @default(autoincrement())
+  poolId        Int
+  sellerId      Int
+  sellerAddress String
+  pricePerShare Decimal
+  sharesAmount  Decimal
+  sharesFilled  Decimal          @default(0.000000000000000000000000000000)
+  status        p2p_order_status @default(OPEN)
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  pool          pool             @relation(fields: [poolId], references: [id], map: "P2POrder_poolId_fkey")
+  seller        user             @relation("P2POrderSeller", fields: [sellerId], references: [id], map: "P2POrder_sellerId_fkey")
+  trades        p2p_trade[]
+
+  @@index([poolId], map: "P2POrder_poolId_fkey")
+  @@index([sellerId], map: "P2POrder_sellerId_fkey")
+}
+
+model p2p_trade {
+  id           Int              @id @default(autoincrement())
+  orderId      Int
+  buyerId      Int
+  buyerAddress String
+  sharesAmount Decimal
+  totalPrice   Decimal
+  status       p2p_trade_status @default(MATCHED)
+  createdAt    DateTime         @default(now())
+  buyer        user             @relation("P2PTradeBuyer", fields: [buyerId], references: [id], map: "P2PTrade_buyerId_fkey")
+  order        p2p_order        @relation(fields: [orderId], references: [id], map: "P2PTrade_orderId_fkey")
+
+  @@index([orderId], map: "P2PTrade_orderId_fkey")
+  @@index([buyerId], map: "P2PTrade_buyerId_fkey")
 }
 
 enum user_role {
@@ -165,4 +203,17 @@ enum asset_status {
   TOKENIZED
   LISTED
   ONBOARDED
+}
+
+enum p2p_order_status {
+  OPEN
+  PARTIAL
+  FILLED
+  CANCELLED
+}
+
+enum p2p_trade_status {
+  MATCHED
+  SETTLED
+  FAILED
 }

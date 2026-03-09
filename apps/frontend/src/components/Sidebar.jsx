@@ -1,12 +1,11 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import AgentChatModal from './AgentChatModal';
+import auraLogo from '../assets/aura_logo_transparent.png';
 
 const Sidebar = () => {
     const { user, logout } = useAuth();
     const navigate = useNavigate();
-    const [isAgentOpen, setIsAgentOpen] = useState(false);
 
     const handleLogout = () => {
         logout();
@@ -19,9 +18,11 @@ const Sidebar = () => {
             { label: 'Settings', icon: 'settings', path: '/settings' }
         ]
         : [
+            { label: 'Discover', icon: 'explore', path: '/discover' },
             { label: 'Overview', icon: 'pie_chart', path: '/dashboard' },
             { label: 'Portfolio & Wallet', icon: 'account_balance_wallet', path: '/portfolio' },
             { label: 'Marketplace', icon: 'storefront', path: '/marketplace' },
+            { label: 'P2P Market', icon: 'sync_alt', path: '/p2p' },
             { label: 'Assets', icon: 'category', path: '/assets' },
             { label: 'Settings', icon: 'settings', path: '/settings' }
         ];
@@ -30,9 +31,7 @@ const Sidebar = () => {
         <aside className="w-72 bg-white dark:bg-background-dark border-r border-slate-200 dark:border-slate-800 flex flex-col justify-between p-6 h-screen sticky top-0">
             <div className="flex flex-col gap-8">
                 <div className="flex items-center gap-3 px-2">
-                    <div className="h-10 w-10 bg-primary rounded-xl flex items-center justify-center text-white">
-                        <span className="material-symbols-outlined text-2xl">auto_awesome</span>
-                    </div>
+                    <img src={auraLogo} alt="Aura logo" className="h-14 w-14 object-contain" />
                     <div className="flex flex-col">
                         <h1 className="text-xl font-bold tracking-tight text-primary m-0 bg-none bg-clip-border text-fill-current leading-none">AURA</h1>
                         <p className="text-[10px] font-medium text-slate-500 uppercase tracking-widest mt-1">RWA Protocol</p>
@@ -62,19 +61,6 @@ const Sidebar = () => {
             </div>
 
             <div className="flex flex-col gap-4">
-                <div className="bg-primary/5 rounded-xl p-4 border border-primary/10">
-                    <p className="text-xs font-bold text-primary uppercase mb-1 m-0 pb-1">AI Valuation Status</p>
-                    <p className="text-xs text-slate-500 leading-relaxed m-0">System monitoring assets globally. Accuracy: 99.4%</p>
-                </div>
-
-                <button
-                    onClick={() => setIsAgentOpen(true)}
-                    className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-900 text-white border-none cursor-pointer text-sm font-semibold"
-                >
-                    <span className="material-symbols-outlined text-base">smart_toy</span>
-                    Agent Chat Mode
-                </button>
-
                 <div className="flex items-center gap-3 px-2">
                     <div className="h-10 w-10 rounded-full bg-slate-200 overflow-hidden border border-slate-200">
                         <img
@@ -95,7 +81,6 @@ const Sidebar = () => {
                     </button>
                 </div>
             </div>
-            <AgentChatModal isOpen={isAgentOpen} onClose={() => setIsAgentOpen(false)} />
         </aside>
     );
 };

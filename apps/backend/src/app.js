@@ -9,6 +9,7 @@ const kycRoutes = require('./routes/kyc.routes');
 const marketplaceRoutes = require('./routes/marketplace.routes');
 const portfolioRoutes = require('./routes/portfolio.routes');
 const aiRoutes = require('./routes/ai.routes');
+const p2pRoutes = require('./routes/p2p.routes');
 
 const app = express();
 
@@ -41,5 +42,6 @@ app.use('/kyc', kycRoutes);
 app.use('/marketplace', marketplaceRoutes);
 app.use('/portfolio', portfolioRoutes);
 app.use('/ai', aiRoutes);
+app.use('/p2p', p2pRoutes);
 
 module.exports = app;

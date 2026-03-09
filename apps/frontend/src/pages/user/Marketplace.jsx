@@ -1,17 +1,24 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
 import AssetCard from '../../components/marketplace/AssetCard';
-import AssetDetailModal from '../../components/marketplace/AssetDetailModal';
-import InvestmentModal from '../../components/marketplace/InvestmentModal';
+import metalPlaceholder from '../../assets/metal_placeholder.png';
+
+const PLACEHOLDER_BY_TYPE = {
+    METAL: metalPlaceholder,
+    REAL_ESTATE: 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=1200&q=80',
+    ART: 'https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?w=1200&q=80',
+    CARBON: 'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=1200&q=80',
+    OTHER: 'https://images.unsplash.com/photo-1520607162513-77705c0f0d4a?w=1200&q=80'
+};
+
+const resolveImage = (asset) => asset?.image || PLACEHOLDER_BY_TYPE[asset?.type] || PLACEHOLDER_BY_TYPE.OTHER;
 
 const Marketplace = () => {
+    const navigate = useNavigate();
     const [pools, setPools] = useState([]);
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState('ALL');
-    const [selectedPool, setSelectedPool] = useState(null);
-    const [detailPool, setDetailPool] = useState(null);
-    const [isDetailOpen, setIsDetailOpen] = useState(false);
-    const [isModalOpen, setIsModalOpen] = useState(false);
 
     const fetchPools = async () => {
         try {
@@ -28,24 +35,7 @@ const Marketplace = () => {
         fetchPools();
     }, []);
 
-    // Step 1: Open detail view
-    const handleDetailClick = (pool) => {
-        setDetailPool(pool);
-        setIsDetailOpen(true);
-    };
-
-    // Step 2: From detail view, open investment modal
-    const handleInvestClick = () => {
-        if (!detailPool) return;
-        setSelectedPool({
-            ...detailPool.asset,
-            pool: detailPool,
-            address: detailPool.address,
-            stablecoinAddress: detailPool.stablecoinAddress,
-            assetId: detailPool.asset.id
-        });
-        setIsModalOpen(true);
-    };
+    const handleDetailClick = (pool) => navigate(`/asset/${pool.asset.id}`, { state: { pool } });
 
     const filteredPools = filter === 'ALL'
         ? pools
@@ -103,28 +93,13 @@ const Marketplace = () => {
                     {filteredPools.map(pool => (
                         <AssetCard
                             key={pool.id}
-                            asset={{ ...pool.asset, totalLiquidity: pool.totalLiquidity }}
+                            asset={{ ...pool.asset, image: resolveImage(pool.asset), totalLiquidity: pool.totalLiquidity }}
                             onInvest={() => handleDetailClick(pool)}
                         />
                     ))}
                 </div>
             )}
 
-            <AssetDetailModal
-                pool={detailPool}
-                isOpen={isDetailOpen}
-                onClose={() => setIsDetailOpen(false)}
-                onInvest={handleInvestClick}
-            />
-
-            {selectedPool && (
-                <InvestmentModal
-                    asset={selectedPool}
-                    isOpen={isModalOpen}
-                    onClose={() => setIsModalOpen(false)}
-                    onSuccess={fetchPools}
-                />
-            )}
         </div>
     );
 };

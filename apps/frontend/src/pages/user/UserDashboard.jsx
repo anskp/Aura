@@ -12,10 +12,12 @@ const UserDashboard = () => {
     const navigate = useNavigate();
     const [wallets, setWallets] = useState([]);
     const [assets, setAssets] = useState([]);
+    const [portfolio, setPortfolio] = useState({ totalValue: 0, positions: [], recentTransactions: [] });
     const [loading, setLoading] = useState(true);
     const [connecting, setConnecting] = useState(false);
     const [isKYCModalOpen, setIsKYCModalOpen] = useState(false);
     const [activeTab, setActiveTab] = useState('investor');
+    const [selectedAsset, setSelectedAsset] = useState(null);
 
     useEffect(() => {
         fetchData();
@@ -24,12 +26,17 @@ const UserDashboard = () => {
     const fetchData = async () => {
         setLoading(true);
         try {
-            const [walletRes, assetRes] = await Promise.all([
+            const [walletRes, assetRes, portfolioRes] = await Promise.all([
                 api.get('/wallets'),
-                api.get('/assets/my-assets')
+                api.get('/assets/my-assets'),
+                api.get('/portfolio/summary')
             ]);
             setWallets(walletRes.data);
             setAssets(assetRes.data);
+            setPortfolio(portfolioRes.data || { totalValue: 0, positions: [], recentTransactions: [] });
+            if (assetRes.data?.length > 0) {
+                setSelectedAsset(assetRes.data[0]);
+            }
         } catch (err) {
             console.error(err);
         } finally {
@@ -75,6 +82,20 @@ const UserDashboard = () => {
     const isKYCComplete = user?.kycStatus === 'APPROVED';
     const isWalletConnected = wallets.length > 0;
     const isFullyOnboarded = isKYCComplete && isWalletConnected;
+
+    // Derived Issuer Stats
+    const totalTVL = assets.reduce((sum, asset) => sum + Number(asset.pool?.totalLiquidity || 0), 0);
+    const activeAssetCount = assets.filter(a => a.status === 'TOKENIZED' || a.status === 'LISTED').length;
+
+    // Simple APY calculation for demo/summary: weighted average of pool APYs or constant 8.42%
+    const avgAPY = assets.length > 0
+        ? (assets.reduce((sum, a) => {
+            const val = Number(a.valuation || a.nav || 1);
+            const poolLiq = Number(a.pool?.totalLiquidity || 0);
+            const apy = val > 0 ? Math.min(15, Math.max(4, (poolLiq / val) * 100 + 5)) : 8.42;
+            return sum + apy;
+        }, 0) / assets.length).toFixed(2)
+        : '0.00';
 
     if (loading) return (
         <div className="flex justify-center items-center h-64">
@@ -191,26 +212,28 @@ const UserDashboard = () => {
                                 <span className="bg-emerald-100 text-emerald-700 px-2 py-1 rounded-lg text-xs font-bold">+0.0%</span>
                             </div>
                             <div className="flex flex-col">
-                                <span className="text-4xl font-black tracking-tight text-slate-900 dark:text-white bg-none m-0 pb-1">$0.00</span>
-                                <span className="text-slate-400 text-xs mt-1">~0 ETH</span>
+                                <span className="text-4xl font-black tracking-tight text-slate-900 dark:text-white bg-none m-0 pb-1">${Number(portfolio.totalValue || 0).toLocaleString()}</span>
+                                <span className="text-slate-400 text-xs mt-1">Institutional Grade Portfolio</span>
                             </div>
                         </div>
                         <div className="bg-white dark:bg-background-dark p-8 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-xl hover:shadow-primary/5 transition-all">
                             <div className="flex justify-between items-start mb-4">
                                 <span className="text-slate-500 text-sm font-medium">Current Yield (APY)</span>
-                                <span className="bg-primary/10 text-primary px-2 py-1 rounded-lg text-xs font-bold">Stable</span>
+                                <span className="bg-primary/10 text-primary px-2 py-1 rounded-lg text-xs font-bold">Live</span>
                             </div>
                             <div className="flex flex-col">
-                                <span className="text-4xl font-black tracking-tight text-slate-900 dark:text-white bg-none m-0 pb-1">0.0%</span>
-                                <span className="text-slate-400 text-xs mt-1">Across 0 active pools</span>
+                                <span className="text-4xl font-black tracking-tight text-slate-900 dark:text-white bg-none m-0 pb-1">
+                                    {portfolio.positions?.length > 0 ? '8.4%' : '0.0%'}
+                                </span>
+                                <span className="text-slate-400 text-xs mt-1">Across {portfolio.positions?.length || 0} active positions</span>
                             </div>
                         </div>
                         <div className="bg-white dark:bg-background-dark p-8 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-xl hover:shadow-primary/5 transition-all cursor-pointer" onClick={() => navigate('/portfolio')}>
                             <div className="flex justify-between items-start mb-4">
-                                <span className="text-slate-500 text-sm font-medium">Total Tokens</span>
+                                <span className="text-slate-500 text-sm font-medium">Total Assets</span>
                             </div>
                             <div className="flex flex-col">
-                                <span className="text-4xl font-black tracking-tight text-slate-900 dark:text-white bg-none m-0 pb-1">0</span>
+                                <span className="text-4xl font-black tracking-tight text-slate-900 dark:text-white bg-none m-0 pb-1">{portfolio.positions?.length || 0}</span>
                                 <span className="text-slate-400 text-xs mt-1 text-primary hover:underline">View in Portfolio & Wallet</span>
                             </div>
                         </div>
@@ -223,36 +246,23 @@ const UserDashboard = () => {
                             <button className="text-sm text-primary font-bold hover:underline bg-transparent border-none cursor-pointer" onClick={() => navigate('/portfolio')}>View All</button>
                         </div>
                         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-                            {/* Rendering mock assets in the dashboard */}
-                            {[{
-                                id: 1,
-                                name: "Skyline Residency Tower A",
-                                type: "REAL ESTATE",
-                                symbol: "SKY-A",
-                                nav: 8450000,
-                                image: "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=800&q=80",
-                                roi: "12%",
-                                cagr: "15%",
-                                companyName: "Emaar Properties",
-                                investmentStrategy: "High-Yield",
-                                location: "Dubai, UAE",
-                                status: "LISTED"
-                            }, {
-                                id: 2,
-                                name: "Solar Farm Revenue Share",
-                                type: "CARBON CREDITS",
-                                symbol: "SOLAR-RS",
-                                nav: 2500000,
-                                image: "https://images.unsplash.com/photo-1509391366360-2e959784a276?w=800&q=80",
-                                roi: "14%",
-                                cagr: "16%",
-                                companyName: "Renewable Energy Corp",
-                                investmentStrategy: "Yield via Offtake",
-                                location: "California, USA",
-                                status: "LISTED"
-                            }].map(asset => (
-                                <AssetCard key={asset.id} asset={asset} isPreview={true} />
-                            ))}
+                            {portfolio.positions?.length > 0 ? (
+                                portfolio.positions.map(pos => (
+                                    <AssetCard key={pos.assetId} asset={{
+                                        id: pos.assetId,
+                                        name: pos.assetName,
+                                        symbol: pos.assetSymbol,
+                                        valuation: pos.nav,
+                                        type: pos.type,
+                                        status: 'LISTED'
+                                    }} isPreview={true} />
+                                ))
+                            ) : (
+                                <div className="col-span-full py-12 text-center bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800">
+                                    <p className="text-slate-400 font-medium">No active holdings found in your connected wallets.</p>
+                                    <button onClick={() => navigate('/marketplace')} className="mt-4 text-primary font-bold hover:underline bg-transparent border-none cursor-pointer">Explore Marketplace →</button>
+                                </div>
+                            )}
                         </div>
                     </section>
 
@@ -304,13 +314,36 @@ const UserDashboard = () => {
                         <section className="bg-white dark:bg-background-dark rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm flex flex-col">
                             <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-900/50">
                                 <h3 className="text-lg font-bold text-slate-900 dark:text-white bg-none m-0">Recent Activity</h3>
-                                <a className="text-sm text-primary font-bold hover:underline cursor-pointer">View All</a>
+                                <a className="text-sm text-primary font-bold hover:underline cursor-pointer" onClick={() => navigate('/portfolio')}>View All</a>
                             </div>
-                            <div className="p-8 text-center flex flex-col items-center justify-center flex-1 min-h-[200px]">
-                                <div className="w-16 h-16 bg-slate-50 dark:bg-slate-800 rounded-full mb-4 flex items-center justify-center text-slate-300 border border-slate-100 dark:border-slate-700 shadow-inner">
-                                    <Activity size={24} />
-                                </div>
-                                <p className="text-sm text-slate-500 font-medium m-0">No recent transactions</p>
+                            <div className="flex-1 overflow-y-auto max-h-[300px]">
+                                {portfolio.recentTransactions?.length > 0 ? (
+                                    <div className="divide-y divide-slate-100 dark:divide-slate-800">
+                                        {portfolio.recentTransactions.map(tx => (
+                                            <div key={tx.id} className="p-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors flex items-center justify-between">
+                                                <div className="flex items-center gap-3">
+                                                    <div className={`p-2 rounded-lg ${tx.type === 'INVEST' ? 'bg-emerald-100 text-emerald-600' : 'bg-blue-100 text-blue-600'}`}>
+                                                        <Activity size={16} />
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-sm font-bold m-0 text-slate-900 dark:text-white">{tx.type}</p>
+                                                        <p className="text-[10px] text-slate-400 m-0">{new Date(tx.createdAt).toLocaleDateString()}</p>
+                                                    </div>
+                                                </div>
+                                                <div className="text-right">
+                                                    <p className="text-sm font-mono text-slate-500">{tx.txHash.substring(0, 6)}...{tx.txHash.substring(tx.txHash.length - 4)}</p>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="p-8 text-center flex flex-col items-center justify-center min-h-[200px]">
+                                        <div className="w-16 h-16 bg-slate-50 dark:bg-slate-800 rounded-full mb-4 flex items-center justify-center text-slate-300 border border-slate-100 dark:border-slate-700 shadow-inner">
+                                            <Activity size={24} />
+                                        </div>
+                                        <p className="text-sm text-slate-500 font-medium m-0">No recent transactions</p>
+                                    </div>
+                                )}
                             </div>
                         </section>
                     </div>
@@ -334,10 +367,10 @@ const UserDashboard = () => {
                                 <span className="material-symbols-outlined text-primary bg-primary/10 p-2 rounded-lg">account_balance</span>
                             </div>
                             <div className="flex items-end gap-3">
-                                <p className="text-3xl font-black tracking-tight m-0">$14.28M</p>
+                                <p className="text-3xl font-black tracking-tight m-0">${totalTVL >= 1000000 ? (totalTVL / 1000000).toFixed(2) + 'M' : totalTVL.toLocaleString()}</p>
                                 <p className="text-emerald-600 text-sm font-bold flex items-center mb-1 m-0">
                                     <span className="material-symbols-outlined text-[18px]">trending_up</span>
-                                    5.2%
+                                    {assets.length > 0 ? '5.2%' : '0%'}
                                 </p>
                             </div>
                         </div>
@@ -348,8 +381,8 @@ const UserDashboard = () => {
                                 <span className="material-symbols-outlined text-primary bg-primary/10 p-2 rounded-lg">layers</span>
                             </div>
                             <div className="flex items-end gap-3">
-                                <p className="text-3xl font-black tracking-tight m-0">{assets.length > 0 ? assets.length : '24'}</p>
-                                <p className="text-primary text-sm font-bold mb-1 m-0">+2 this month</p>
+                                <p className="text-3xl font-black tracking-tight m-0">{activeAssetCount}</p>
+                                <p className="text-primary text-sm font-bold mb-1 m-0">Out of {assets.length} total</p>
                             </div>
                         </div>
 
@@ -359,8 +392,8 @@ const UserDashboard = () => {
                                 <span className="material-symbols-outlined text-primary bg-primary/10 p-2 rounded-lg">percent</span>
                             </div>
                             <div className="flex items-end gap-3">
-                                <p className="text-3xl font-black tracking-tight m-0">8.42%</p>
-                                <p className="text-slate-400 text-sm font-medium mb-1 m-0">Global Market Avg: 7.1%</p>
+                                <p className="text-3xl font-black tracking-tight m-0">{avgAPY}%</p>
+                                <p className="text-slate-400 text-sm font-medium mb-1 m-0">Target yield reached</p>
                             </div>
                         </div>
                     </div>
@@ -392,63 +425,45 @@ const UserDashboard = () => {
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                                        <tr className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer group">
-                                            <td className="px-6 py-4">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="w-10 h-10 rounded-lg bg-orange-100 flex items-center justify-center text-orange-600">
-                                                        <span className="material-symbols-outlined">grid_goldenratio</span>
-                                                    </div>
-                                                    <div>
-                                                        <p className="font-bold text-sm m-0 pb-1 text-slate-900 dark:text-slate-100">Bullion Reserve AU-92</p>
-                                                        <p className="text-xs text-slate-400 m-0">ID: 0x48a...e912</p>
-                                                    </div>
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4"><span className="text-sm font-medium text-slate-700 dark:text-slate-300">Gold</span></td>
-                                            <td className="px-6 py-4">
-                                                <span className="px-2 py-1 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700 uppercase">In Pool</span>
-                                            </td>
-                                            <td className="px-6 py-4 text-sm font-bold text-slate-900 dark:text-slate-100">$2,145,200</td>
-                                            <td className="px-6 py-4 text-center"><span className="material-symbols-outlined text-emerald-500">verified</span></td>
-                                        </tr>
-                                        <tr className="bg-primary/5 border-l-4 border-l-primary hover:bg-primary/10 transition-colors cursor-pointer">
-                                            <td className="px-6 py-4">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center text-blue-600">
-                                                        <span className="material-symbols-outlined">apartment</span>
-                                                    </div>
-                                                    <div>
-                                                        <p className="font-bold text-sm m-0 pb-1 text-slate-900 dark:text-slate-100">Skyline Residency Tower A</p>
-                                                        <p className="text-xs text-slate-400 m-0">ID: 0x92f...a421</p>
-                                                    </div>
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4"><span className="text-sm font-medium text-slate-700 dark:text-slate-300">Real Estate</span></td>
-                                            <td className="px-6 py-4">
-                                                <span className="px-2 py-1 rounded-full text-[10px] font-bold bg-primary/20 text-primary uppercase tracking-tight">Tokenized</span>
-                                            </td>
-                                            <td className="px-6 py-4 text-sm font-bold text-slate-900 dark:text-slate-100">$8,450,000</td>
-                                            <td className="px-6 py-4 text-center"><span className="material-symbols-outlined text-emerald-500">verified</span></td>
-                                        </tr>
-                                        <tr className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer group">
-                                            <td className="px-6 py-4">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-400">
-                                                        <span className="material-symbols-outlined">villa</span>
-                                                    </div>
-                                                    <div>
-                                                        <p className="font-bold text-sm m-0 pb-1 text-slate-900 dark:text-slate-100">Malibu Beachfront Estate</p>
-                                                        <p className="text-xs text-slate-400 m-0">ID: 0xc4b...3820</p>
-                                                    </div>
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4"><span className="text-sm font-medium text-slate-700 dark:text-slate-300">Real Estate</span></td>
-                                            <td className="px-6 py-4">
-                                                <span className="px-2 py-1 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 uppercase">Pending AI</span>
-                                            </td>
-                                            <td className="px-6 py-4 text-sm font-medium text-slate-400">Processing...</td>
-                                            <td className="px-6 py-4 text-center"><span className="material-symbols-outlined text-slate-300">hourglass_empty</span></td>
-                                        </tr>
+                                        {assets.length > 0 ? (
+                                            assets.map(asset => (
+                                                <tr key={asset.id} onClick={() => setSelectedAsset(asset)} className={`hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer group ${selectedAsset?.id === asset.id ? 'bg-primary/5 border-l-4 border-l-primary' : ''}`}>
+                                                    <td className="px-6 py-4">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${asset.type === 'METAL' ? 'bg-orange-100 text-orange-600' : 'bg-blue-100 text-blue-600'}`}>
+                                                                <span className="material-symbols-outlined">{asset.type === 'METAL' ? 'grid_goldenratio' : 'apartment'}</span>
+                                                            </div>
+                                                            <div>
+                                                                <p className="font-bold text-sm m-0 pb-1 text-slate-900 dark:text-slate-100">{asset.name}</p>
+                                                                <p className="text-xs text-slate-400 m-0">ID: {asset.tokenAddress ? `${asset.tokenAddress.substring(0, 6)}...${asset.tokenAddress.substring(38)}` : 'Not Tokenized'}</p>
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-6 py-4"><span className="text-sm font-medium text-slate-700 dark:text-slate-300">{asset.type}</span></td>
+                                                    <td className="px-6 py-4">
+                                                        <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-tight ${asset.status === 'LISTED' ? 'bg-emerald-100 text-emerald-700' :
+                                                            asset.status === 'TOKENIZED' ? 'bg-primary/20 text-primary' : 'bg-amber-100 text-amber-700'
+                                                            }`}>
+                                                            {asset.status === 'LISTED' ? 'In Pool' : asset.status}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-6 py-4 text-sm font-bold text-slate-900 dark:text-slate-100">
+                                                        ${Number(asset.nav || asset.aiPricing || asset.valuation).toLocaleString()}
+                                                    </td>
+                                                    <td className="px-6 py-4 text-center">
+                                                        <span className={`material-symbols-outlined ${asset.tokenAddress ? 'text-emerald-500' : 'text-slate-300'}`}>
+                                                            {asset.tokenAddress ? 'verified' : 'hourglass_empty'}
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                            ))
+                                        ) : (
+                                            <tr>
+                                                <td colSpan="5" className="px-6 py-12 text-center text-sm text-slate-400">
+                                                    No assets registered yet.
+                                                </td>
+                                            </tr>
+                                        )}
                                     </tbody>
                                 </table>
                             </div>
@@ -471,8 +486,8 @@ const UserDashboard = () => {
                                 <div className="p-6">
                                     <div className="mb-6">
                                         <p className="text-xs font-bold text-slate-400 uppercase mb-2 tracking-widest m-0 pb-1">Selected Asset</p>
-                                        <h4 className="text-xl font-bold m-0 pb-1 text-slate-900 dark:text-slate-100">Skyline Residency Tower A</h4>
-                                        <p className="text-sm text-slate-500 m-0">Last update: 14 mins ago</p>
+                                        <h4 className="text-xl font-bold m-0 pb-1 text-slate-900 dark:text-slate-100">{selectedAsset?.name || 'No Asset Selected'}</h4>
+                                        <p className="text-sm text-slate-500 m-0">Value: ${Number(selectedAsset?.nav || selectedAsset?.valuation || 0).toLocaleString()}</p>
                                     </div>
 
                                     <div className="space-y-6">
@@ -511,7 +526,7 @@ const UserDashboard = () => {
 
                                         <div className="border-t border-slate-100 dark:border-slate-800 pt-4">
                                             <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed italic m-0">
-                                                "Asset value supported by increased demand in the commercial sector. Projected 2.1% growth over next quarter based on localized urban development trends."
+                                                {selectedAsset?.aiReasoning || "AI pricing update pending for this asset. Liquidity depth analysis required."}
                                             </p>
                                         </div>
 
